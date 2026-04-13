@@ -12,6 +12,7 @@ const Account = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const { isAdmin, login } = useAuth();
   const navigate = useNavigate();
 
@@ -21,14 +22,17 @@ const Account = () => {
     }
   }, [isAdmin, navigate]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    const success = login(email, password);
-    if (success) {
+    setSubmitting(true);
+    try {
+      await login(email, password);
       navigate("/admin");
-    } else {
-      setError("Invalid credentials. Only admin access is allowed.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Invalid credentials. Only admin access is allowed.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -93,8 +97,8 @@ const Account = () => {
                 </div>
               </div>
 
-              <Button type="submit" className="w-full" size="lg">
-                Sign In
+              <Button type="submit" className="w-full" size="lg" disabled={submitting}>
+                {submitting ? "Signing in…" : "Sign In"}
               </Button>
             </form>
 

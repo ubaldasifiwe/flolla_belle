@@ -1,125 +1,72 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import type { CartItem } from "@/context/CartContext";
-
-export type OrderStatus = "processing" | "delivered" | "cancelled";
-export type PaymentMethod = "momo" | "airtel" | "cod";
-
-export interface OrderItemSnapshot {
-  productId: string;
-  name: string;
-  image: string;
-  price: number;
-  quantity: number;
-}
-
-export interface Order {
-  id: string;
-  customerName: string;
-  customerEmail: string;
-  customerPhone: string;
-  recipientName: string;
-  recipientPhone: string;
-  address: string;
-  city: string;
-  deliveryDate: string;
-  deliveryTime: string;
-  paymentMethod: PaymentMethod;
-  paid: boolean;
-  status: OrderStatus;
-  itemCount: number;
-  subtotal: number;
-  deliveryFee: number;
-  total: number;
-  items: OrderItemSnapshot[];
-  createdAt: string;
-}
-
-interface CreateOrderInput {
-  customerName: string;
-  customerEmail: string;
-  customerPhone: string;
-  recipientName: string;
-  recipientPhone: string;
-  address: string;
-  city: string;
-  deliveryDate: string;
-  deliveryTime: string;
-  paymentMethod: PaymentMethod;
-  paid: boolean;
-  subtotal: number;
-  deliveryFee: number;
-  total: number;
-  items: CartItem[];
-}
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import type { Order } from "@/types/order";
+import type { DbCustomerRow } from "@/lib/api";
+import { getDbCustomers, getOrders, patchOrder } from "@/lib/api";
+import type { OrderStatus } from "@/types/order";
+import { useAuth } from "@/context/AuthContext";
 
 interface OrderContextType {
   orders: Order[];
-  addOrder: (input: CreateOrderInput) => Order;
-  updateOrderStatus: (orderId: string, status: OrderStatus) => void;
+  ordersLoading: boolean;
+  dbCustomers: DbCustomerRow[];
+  refreshOrdersAndCustomers: () => Promise<void>;
+  updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
 }
-
-const STORAGE_KEY = "flora-belle-orders";
-
-const readStoredOrders = (): Order[] => {
-  if (typeof window === "undefined") return [];
-
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as Order[]) : [];
-  } catch {
-    return [];
-  }
-};
-
-const createOrderId = () => `ORD-${Date.now().toString().slice(-6)}`;
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
 export const OrderProvider = ({ children }: { children: ReactNode }) => {
-  const [orders, setOrders] = useState<Order[]>(readStoredOrders);
+  const { isAdmin, authLoading } = useAuth();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [dbCustomers, setDbCustomers] = useState<DbCustomerRow[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
 
+  const refreshOrdersAndCustomers = useCallback(async () => {
+    setOrdersLoading(true);
+    try {
+      const [nextOrders, nextCustomers] = await Promise.all([
+        getOrders(),
+        getDbCustomers().catch(() => [] as DbCustomerRow[]),
+      ]);
+      setOrders(nextOrders);
+      setDbCustomers(Array.isArray(nextCustomers) ? nextCustomers : []);
+    } catch {
+      setOrders([]);
+      setDbCustomers([]);
+    } finally {
+      setOrdersLoading(false);
+    }
+  }, []);
+
+  /** Orders & customers APIs require admin auth — only load after session is known and user is admin. */
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
-  }, [orders]);
+    if (authLoading) return;
 
-  const value = useMemo<OrderContextType>(() => ({
-    orders,
-    addOrder: (input) => {
-      const nextOrder: Order = {
-        id: createOrderId(),
-        customerName: input.customerName,
-        customerEmail: input.customerEmail,
-        customerPhone: input.customerPhone,
-        recipientName: input.recipientName,
-        recipientPhone: input.recipientPhone,
-        address: input.address,
-        city: input.city,
-        deliveryDate: input.deliveryDate,
-        deliveryTime: input.deliveryTime,
-        paymentMethod: input.paymentMethod,
-        paid: input.paid,
-        status: "processing",
-        itemCount: input.items.reduce((sum, item) => sum + item.quantity, 0),
-        subtotal: input.subtotal,
-        deliveryFee: input.deliveryFee,
-        total: input.total,
-        items: input.items.map((item) => ({
-          productId: item.product.id,
-          name: item.product.name,
-          image: item.product.image,
-          price: item.product.price,
-          quantity: item.quantity,
-        })),
-        createdAt: new Date().toISOString(),
-      };
+    if (!isAdmin) {
+      setOrders([]);
+      setDbCustomers([]);
+      setOrdersLoading(false);
+      return;
+    }
 
-      setOrders((prev) => [nextOrder, ...prev]);
-      return nextOrder;
-    },
-    updateOrderStatus: (orderId, status) => {
-      setOrders((prev) => prev.map((order) => (order.id === orderId ? { ...order, status } : order)));
-    },
-  }), [orders]);
+    void refreshOrdersAndCustomers();
+  }, [isAdmin, authLoading, refreshOrdersAndCustomers]);
+
+  const updateOrderStatus = useCallback(async (orderId: string, status: OrderStatus) => {
+    await patchOrder(orderId, { status });
+    await refreshOrdersAndCustomers();
+  }, [refreshOrdersAndCustomers]);
+
+  const value = useMemo<OrderContextType>(
+    () => ({
+      orders,
+      ordersLoading,
+      dbCustomers,
+      refreshOrdersAndCustomers,
+      updateOrderStatus,
+    }),
+    [orders, ordersLoading, dbCustomers, refreshOrdersAndCustomers, updateOrderStatus]
+  );
 
   return <OrderContext.Provider value={value}>{children}</OrderContext.Provider>;
 };
@@ -129,3 +76,5 @@ export const useOrders = () => {
   if (!context) throw new Error("useOrders must be used within OrderProvider");
   return context;
 };
+
+export type { Order, OrderStatus, PaymentMethod, OrderItemSnapshot, CreateOrderInput } from "@/types/order";

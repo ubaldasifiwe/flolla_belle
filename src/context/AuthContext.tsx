@@ -1,37 +1,51 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { authLogin, authLogout, authMe } from "@/lib/api";
 
 interface AuthContextType {
   isAdmin: boolean;
-  login: (email: string, password: string) => boolean;
-  logout: () => void;
+  authLoading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
-const ADMIN_EMAIL = "admin@florabelle.rw";
-const ADMIN_PASSWORD = "florabelle2025";
-
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [isAdmin, setIsAdmin] = useState(() => {
-    return sessionStorage.getItem("florabelle_admin") === "true";
-  });
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
 
-  const login = (email: string, password: string) => {
-    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-      setIsAdmin(true);
-      sessionStorage.setItem("florabelle_admin", "true");
-      return true;
-    }
-    return false;
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const session = await authMe();
+        if (!cancelled && session.authenticated) {
+          setIsAdmin(true);
+        }
+      } finally {
+        if (!cancelled) setAuthLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const login = async (email: string, password: string) => {
+    await authLogin(email, password);
+    setIsAdmin(true);
   };
 
-  const logout = () => {
-    setIsAdmin(false);
-    sessionStorage.removeItem("florabelle_admin");
+  const logout = async () => {
+    try {
+      await authLogout();
+    } finally {
+      setIsAdmin(false);
+    }
   };
 
   return (
-    <AuthContext.Provider value={{ isAdmin, login, logout }}>
+    <AuthContext.Provider value={{ isAdmin, authLoading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

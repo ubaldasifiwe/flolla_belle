@@ -12,6 +12,7 @@ import Shop from "./pages/Shop";
 import ProductDetail from "./pages/ProductDetail";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
+import CheckoutPaymentReturn from "./pages/CheckoutPaymentReturn";
 import Wishlist from "./pages/Wishlist";
 import Account from "./pages/Account";
 import Admin from "./pages/Admin";
@@ -35,6 +36,7 @@ const App = () => (
                     <Route path="/product/:id" element={<ProductDetail />} />
                     <Route path="/cart" element={<Cart />} />
                     <Route path="/checkout" element={<Checkout />} />
+                    <Route path="/checkout/payment-return" element={<CheckoutPaymentReturn />} />
                     <Route path="/wishlist" element={<Wishlist />} />
                     <Route path="/account" element={<Account />} />
                     <Route path="/admin" element={<Admin />} />

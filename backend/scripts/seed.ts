@@ -1,8 +1,18 @@
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import mysql from "mysql2/promise";
 import dotenv from "dotenv";
-import { categories, products } from "../../meproject/src/data/products";
+import { seedCategories, seedProducts } from "./seedCatalog";
 
-dotenv.config();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+for (const envPath of [
+  path.join(__dirname, "../.env"),
+  path.join(__dirname, "../src/.env"),
+]) {
+  if (fs.existsSync(envPath)) dotenv.config({ path: envPath });
+}
+if (!process.env.DB_NAME) dotenv.config();
 
 const slugify = (value: string) =>
   value
@@ -37,7 +47,7 @@ async function seed() {
     // Insert categories and keep map from frontend category id -> db numeric id
     const categoryMap = new Map<string, number>();
 
-    for (const cat of categories) {
+    for (const cat of seedCategories) {
       const [result] = await connection.query<mysql.ResultSetHeader>(
         `
         INSERT INTO categories (slug, name, image_url, emoji)
@@ -49,7 +59,7 @@ async function seed() {
     }
 
     // Insert products + images + sizes
-    for (const p of products) {
+    for (const p of seedProducts) {
       const categoryId = categoryMap.get(p.category);
       if (!categoryId) {
         throw new Error(`Category not found for product: ${p.name}`);
@@ -107,8 +117,8 @@ async function seed() {
 
     await connection.commit();
     console.log("Seeding completed successfully.");
-    console.log(`Inserted categories: ${categories.length}`);
-    console.log(`Inserted products: ${products.length}`);
+    console.log(`Inserted categories: ${seedCategories.length}`);
+    console.log(`Inserted products: ${seedProducts.length}`);
   } catch (error) {
     await connection.rollback();
     console.error("Seeding failed:", error);

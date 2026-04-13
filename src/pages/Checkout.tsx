@@ -1,19 +1,19 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Check, ArrowLeft, ArrowRight } from "lucide-react";
+import { Check, ArrowLeft, ArrowRight, Smartphone, CreditCard } from "lucide-react";
 import Layout from "@/components/Layout";
 import { useCart } from "@/context/CartContext";
-import { useOrders } from "@/context/OrderContext";
 import { formatPrice } from "@/data/products";
 import { toast } from "sonner";
+import { createOrder, createCardCheckoutSession, initiateMobilePayment, getOrderPaymentStatus } from "@/lib/api";
 
 const steps = ["Customer Info", "Delivery", "Payment", "Review"];
 
 const Checkout = () => {
   const { items, subtotal, deliveryFee, total, clearCart, itemCount } = useCart();
-  const { addOrder } = useOrders();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [step, setStep] = useState(0);
 
   const [form, setForm] = useState({
@@ -29,9 +29,60 @@ const Checkout = () => {
     paymentMethod: "momo",
   });
 
+  const [postCheckout, setPostCheckout] = useState<{
+    id: number;
+    method: "momo" | "airtel";
+    total: number;
+  } | null>(null);
+  const [payPhone, setPayPhone] = useState("");
+  const [payPoll, setPayPoll] = useState(false);
+  const [payBusy, setPayBusy] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   const update = (field: string, value: string) => setForm((prev) => ({ ...prev, [field]: value }));
 
-  if (items.length === 0) {
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (searchParams.get("canceled") === "1") {
+      toast.message("Card payment was canceled. You can place the order again or choose another payment method.", {
+        duration: 5000,
+      });
+    }
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!payPoll || !postCheckout) return;
+
+    const tick = async () => {
+      try {
+        const s = await getOrderPaymentStatus(postCheckout.id, form.email);
+        if (s.paid) {
+          if (pollRef.current) clearInterval(pollRef.current);
+          pollRef.current = null;
+          setPayPoll(false);
+          toast.success("Payment received. Thank you! 🌸");
+          setPostCheckout(null);
+          navigate("/");
+        }
+      } catch {
+        /* ignore transient errors while polling */
+      }
+    };
+
+    tick();
+    pollRef.current = setInterval(tick, 3500);
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+      pollRef.current = null;
+    };
+  }, [payPoll, postCheckout, form.email, navigate]);
+
+  if (items.length === 0 && !postCheckout) {
     return (
       <Layout>
         <div className="container py-20 text-center">
@@ -42,30 +93,100 @@ const Checkout = () => {
     );
   }
 
-  const handlePlaceOrder = () => {
-    const paid = form.paymentMethod !== "cod";
+  const handlePlaceOrder = async () => {
+    try {
+      const payload = {
+        customer: {
+          name: form.name,
+          email: form.email,
+          phone: form.phone,
+        },
+        recipient: {
+          name: form.recipientName,
+          phone: form.recipientPhone,
+        },
+        delivery: {
+          address: form.address,
+          city: form.city,
+          date: form.deliveryDate,
+          timeSlot: form.deliveryTime,
+        },
+        pricing: {
+          subtotal,
+          deliveryFee,
+          total,
+        },
+        paymentMethod: form.paymentMethod,
+        items: items.map((item) => ({
+          productId: Number(item.product.id),
+          name: item.product.name,
+          sizeLabel: item.product.sizes?.[0]?.label || null,
+          unitPrice: item.product.price,
+          quantity: item.quantity,
+          customMessage: null,
+          imageUrl: typeof item.product.image === "string" ? item.product.image : "",
+        })),
+      };
 
-    addOrder({
-      customerName: form.name,
-      customerEmail: form.email,
-      customerPhone: form.phone,
-      recipientName: form.recipientName,
-      recipientPhone: form.recipientPhone,
-      address: form.address,
-      city: form.city,
-      deliveryDate: form.deliveryDate,
-      deliveryTime: form.deliveryTime,
-      paymentMethod: form.paymentMethod as "momo" | "airtel" | "cod",
-      paid,
-      subtotal,
-      deliveryFee,
-      total,
-      items,
-    });
+      const raw = await createOrder(payload);
+      const orderId = raw.id;
 
-    toast.success("Order placed successfully! 🌸 We'll deliver your flowers with love.");
-    clearCart();
-    navigate("/");
+      if (form.paymentMethod === "cod") {
+        toast.success("Order placed successfully! 🌸 We'll deliver your flowers with love.");
+        clearCart();
+        navigate("/");
+        return;
+      }
+
+      if (form.paymentMethod === "momo" || form.paymentMethod === "airtel") {
+        clearCart();
+        setPayPhone(form.phone);
+        setPostCheckout({ id: orderId, method: form.paymentMethod, total });
+        toast.success("Order created. Complete Mobile Money payment below.");
+        return;
+      }
+
+      if (form.paymentMethod === "card") {
+        try {
+          const { url } = await createCardCheckoutSession(orderId);
+          clearCart();
+          window.location.assign(url);
+        } catch (e) {
+          toast.error(e instanceof Error ? e.message : "Could not start card payment. Is Stripe configured?");
+        }
+        return;
+      }
+
+      toast.success("Order placed successfully!");
+      clearCart();
+      navigate("/");
+    } catch {
+      toast.error("Failed to place order. Please try again.");
+    }
+  };
+
+  const handleInitiateMobilePay = async () => {
+    if (!postCheckout) return;
+    setPayBusy(true);
+    try {
+      const res = await initiateMobilePayment({
+        orderId: postCheckout.id,
+        provider: postCheckout.method,
+        phone: payPhone,
+      });
+      if (res.alreadyPaid) {
+        toast.success("Already marked paid.");
+        navigate("/");
+        setPostCheckout(null);
+        return;
+      }
+      toast.message(res.message || "Check your phone to approve the payment.", { duration: 6000 });
+      setPayPoll(true);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not start payment");
+    } finally {
+      setPayBusy(false);
+    }
   };
 
   const canNext = () => {
@@ -77,6 +198,50 @@ const Checkout = () => {
 
   const inputCls = "w-full px-4 py-3 rounded-lg bg-secondary text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/30 text-sm border border-border";
 
+  if (postCheckout) {
+    return (
+      <Layout>
+        <div className="container py-6 sm:py-10 max-w-lg">
+          <div className="bg-card rounded-xl shadow-card p-6 space-y-4">
+            <div className="flex items-center gap-2 text-primary">
+              <Smartphone className="w-6 h-6" />
+              <h1 className="text-xl font-display font-bold text-foreground">Complete payment</h1>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Order <span className="font-mono text-foreground">ORD-{postCheckout.id}</span> —{" "}
+              {postCheckout.method === "momo" ? "MTN Mobile Money" : "Airtel Money"} —{" "}
+              <span className="font-semibold text-foreground">{formatPrice(postCheckout.total)}</span>
+            </p>
+            <div>
+              <label className="text-sm font-medium text-foreground mb-1 block">MoMo / Airtel number *</label>
+              <input
+                className={inputCls}
+                value={payPhone}
+                onChange={(e) => setPayPhone(e.target.value)}
+                placeholder="07XX XXX XXX or 2507XXXXXXXXX"
+              />
+              <p className="text-xs text-muted-foreground mt-1">Use the wallet number that will approve the payment.</p>
+            </div>
+            <ButtonRow
+              payBusy={payBusy}
+              payPoll={payPoll}
+              onPay={handleInitiateMobilePay}
+              onLater={() => {
+                setPostCheckout(null);
+                navigate("/");
+              }}
+            />
+            {payPoll ? (
+              <p className="text-xs text-muted-foreground text-center">
+                Waiting for payment confirmation… This page updates automatically.
+              </p>
+            ) : null}
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <div className="container py-6 sm:py-10 max-w-3xl">
@@ -86,7 +251,6 @@ const Checkout = () => {
 
         <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground mb-6">Checkout</h1>
 
-        {/* Steps */}
         <div className="flex items-center gap-2 mb-8 overflow-x-auto">
           {steps.map((s, i) => (
             <div key={s} className="flex items-center gap-2">
@@ -164,8 +328,13 @@ const Checkout = () => {
                 <div className="space-y-4">
                   <h2 className="font-display font-bold text-foreground mb-2">Payment Method</h2>
                   {[
-                    { id: "momo", label: "MTN Mobile Money", desc: "Pay via MTN MoMo" },
-                    { id: "airtel", label: "Airtel Money", desc: "Pay via Airtel Money" },
+                    { id: "momo", label: "MTN Mobile Money", desc: "Pay with MTN MoMo (prompt on your phone)" },
+                    { id: "airtel", label: "Airtel Money", desc: "Pay with Airtel Money" },
+                    {
+                      id: "card",
+                      label: "Card (Visa, Mastercard…)",
+                      desc: "Secure checkout — you will pay on a Stripe page (test mode available)",
+                    },
                     { id: "cod", label: "Cash on Delivery", desc: "Pay when you receive your flowers" },
                   ].map((method) => (
                     <label
@@ -194,7 +363,16 @@ const Checkout = () => {
                       <p className="text-muted-foreground">Recipient:</p><p className="text-foreground font-medium">{form.recipientName}</p>
                       <p className="text-muted-foreground">Delivery:</p><p className="text-foreground font-medium">{form.deliveryDate} ({form.deliveryTime})</p>
                       <p className="text-muted-foreground">Address:</p><p className="text-foreground font-medium">{form.address}, {form.city}</p>
-                      <p className="text-muted-foreground">Payment:</p><p className="text-foreground font-medium capitalize">{form.paymentMethod === "momo" ? "MTN MoMo" : form.paymentMethod === "airtel" ? "Airtel Money" : "Cash on Delivery"}</p>
+                      <p className="text-muted-foreground">Payment:</p>
+                      <p className="text-foreground font-medium capitalize">
+                        {form.paymentMethod === "momo"
+                          ? "MTN MoMo"
+                          : form.paymentMethod === "airtel"
+                            ? "Airtel Money"
+                            : form.paymentMethod === "card"
+                              ? "Card (Visa / Mastercard via Stripe)"
+                              : "Cash on Delivery"}
+                      </p>
                     </div>
                   </div>
                   <div className="border-t border-border pt-4">
@@ -206,17 +384,29 @@ const Checkout = () => {
                       </div>
                     ))}
                   </div>
+                  {form.paymentMethod === "momo" || form.paymentMethod === "airtel" ? (
+                    <p className="text-xs text-muted-foreground bg-muted/40 rounded-lg p-3">
+                      After you place the order, you will enter your MoMo/Airtel number and confirm payment on your phone.
+                    </p>
+                  ) : null}
+                  {form.paymentMethod === "card" ? (
+                    <p className="text-xs text-muted-foreground bg-muted/40 rounded-lg p-3 flex items-start gap-2">
+                      <CreditCard className="w-4 h-4 shrink-0 mt-0.5 text-primary" />
+                      After you place the order, you will be redirected to a secure payment page to enter your card. Your card details never touch our servers.
+                    </p>
+                  ) : null}
                 </div>
               )}
 
               <div className="flex justify-between mt-6 pt-4 border-t border-border">
                 {step > 0 ? (
-                  <button onClick={() => setStep(step - 1)} className="inline-flex items-center gap-1 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-secondary rounded-lg transition-colors">
+                  <button type="button" onClick={() => setStep(step - 1)} className="inline-flex items-center gap-1 px-4 py-2.5 text-sm font-medium text-foreground hover:bg-secondary rounded-lg transition-colors">
                     <ArrowLeft className="w-4 h-4" /> Back
                   </button>
                 ) : <div />}
                 {step < 3 ? (
                   <button
+                    type="button"
                     onClick={() => setStep(step + 1)}
                     disabled={!canNext()}
                     className="inline-flex items-center gap-1 px-6 py-2.5 bg-primary text-primary-foreground font-semibold rounded-lg hover:bg-primary-dark transition-colors text-sm disabled:opacity-40"
@@ -225,6 +415,7 @@ const Checkout = () => {
                   </button>
                 ) : (
                   <button
+                    type="button"
                     onClick={handlePlaceOrder}
                     className="inline-flex items-center gap-1 px-6 py-2.5 bg-accent text-accent-foreground font-semibold rounded-lg hover:brightness-110 transition-all text-sm"
                   >
@@ -235,7 +426,6 @@ const Checkout = () => {
             </motion.div>
           </div>
 
-          {/* Summary sidebar */}
           <div>
             <div className="bg-card rounded-xl shadow-card p-5 sticky top-20">
               <h3 className="font-display font-bold text-foreground mb-3 text-sm">Summary</h3>
@@ -269,5 +459,33 @@ const Checkout = () => {
     </Layout>
   );
 };
+
+function ButtonRow({
+  payBusy,
+  payPoll,
+  onPay,
+  onLater,
+}: {
+  payBusy: boolean;
+  payPoll: boolean;
+  onPay: () => void;
+  onLater: () => void;
+}) {
+  return (
+    <div className="flex flex-col sm:flex-row gap-2">
+      <button
+        type="button"
+        disabled={payBusy || payPoll}
+        onClick={onPay}
+        className="flex-1 px-4 py-3 bg-primary text-primary-foreground font-semibold rounded-lg text-sm disabled:opacity-50"
+      >
+        {payPoll ? "Payment requested…" : payBusy ? "Please wait…" : "Send payment prompt"}
+      </button>
+      <button type="button" onClick={onLater} className="px-4 py-3 border border-border rounded-lg text-sm text-muted-foreground hover:bg-muted/50">
+        I&apos;ll pay later
+      </button>
+    </div>
+  );
+}
 
 export default Checkout;

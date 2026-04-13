@@ -1,24 +1,59 @@
 import { useParams, Link } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Star, ShoppingCart, Heart, Minus, Plus, Truck, Shield, MessageSquare, Calendar } from "lucide-react";
 import { motion } from "framer-motion";
 import Layout from "@/components/Layout";
 import ProductCard from "@/components/ProductCard";
 import { formatPrice } from "@/data/products";
-import { useProducts } from "@/context/ProductContext";
+import type { Product } from "@/data/products";
+import { getProductById, getProducts } from "@/lib/api";
 import { useCart } from "@/context/CartContext";
 import { toast } from "sonner";
 
 const ProductDetail = () => {
   const { id } = useParams();
-  const { productList: products } = useProducts();
-  const product = products.find((p) => p.id === id);
   const { addToCart } = useCart();
+
+  const [product, setProduct] = useState<Product | null>(null);
+  const [related, setRelated] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedSize, setSelectedSize] = useState(0);
   const [customMessage, setCustomMessage] = useState("");
   const [deliveryDate, setDeliveryDate] = useState("");
+
+  useEffect(() => {
+    const load = async () => {
+      if (!id) return;
+
+      try {
+        setLoading(true);
+        const p = await getProductById(id);
+        setProduct(p);
+
+        const all = await getProducts();
+        setRelated(all.filter((x) => x.category === p.category && x.id !== p.id).slice(0, 4));
+      } catch (e) {
+        setProduct(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="container py-20 text-center">
+          <p className="text-muted-foreground">Loading product...</p>
+        </div>
+      </Layout>
+    );
+  }
 
   if (!product) {
     return (
@@ -31,7 +66,6 @@ const ProductDetail = () => {
     );
   }
 
-  const related = products.filter((p) => p.category === product.category && p.id !== product.id).slice(0, 4);
   const currentPrice = product.sizes[selectedSize]?.price || product.price;
 
   const handleAddToCart = () => {
@@ -39,7 +73,6 @@ const ProductDetail = () => {
     toast.success(`${product.name} added to cart`);
   };
 
-  // Get minimum date (today)
   const today = new Date().toISOString().split("T")[0];
 
   return (
@@ -54,7 +87,6 @@ const ProductDetail = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
-          {/* Images */}
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
             <div className="aspect-square rounded-xl overflow-hidden bg-secondary mb-3">
               <img src={product.images[selectedImage]} alt={product.name} className="w-full h-full object-cover" />
@@ -74,7 +106,6 @@ const ProductDetail = () => {
             )}
           </motion.div>
 
-          {/* Details */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
             {product.badge && (
               <span className="inline-block px-3 py-1 bg-primary text-primary-foreground text-xs font-bold rounded-full mb-3 uppercase tracking-wider">
@@ -105,7 +136,6 @@ const ProductDetail = () => {
 
             <p className="text-sm text-muted-foreground leading-relaxed mb-6">{product.description}</p>
 
-            {/* Size selector */}
             {product.sizes.length > 0 && (
               <div className="mb-5">
                 <label className="text-sm font-semibold text-foreground mb-2 block">Size</label>
@@ -127,7 +157,6 @@ const ProductDetail = () => {
               </div>
             )}
 
-            {/* Custom message */}
             <div className="mb-5">
               <label className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5">
                 <MessageSquare className="w-4 h-4 text-primary" /> Add a Personal Message
@@ -143,7 +172,6 @@ const ProductDetail = () => {
               <p className="text-xs text-muted-foreground mt-1">{customMessage.length}/200 characters</p>
             </div>
 
-            {/* Delivery date */}
             <div className="mb-6">
               <label className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5">
                 <Calendar className="w-4 h-4 text-primary" /> Preferred Delivery Date
@@ -157,7 +185,6 @@ const ProductDetail = () => {
               />
             </div>
 
-            {/* Quantity + Add to cart */}
             <div className="flex flex-col sm:flex-row gap-3 mb-6">
               <div className="flex items-center border border-border rounded-lg">
                 <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="px-3 py-2.5 hover:bg-secondary transition-colors text-foreground">
@@ -180,7 +207,6 @@ const ProductDetail = () => {
               </button>
             </div>
 
-            {/* Features */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {[
                 { icon: Truck, text: "Same-day delivery" },

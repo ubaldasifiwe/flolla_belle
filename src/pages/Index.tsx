@@ -1,10 +1,12 @@
 import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, Truck, Shield, Clock, Star, Mail, Flower2 } from "lucide-react";
 import Layout from "@/components/Layout";
 import ProductCard from "@/components/ProductCard";
+import type { Product } from "@/data/products";
 import { categories } from "@/data/products";
-import { useProducts } from "@/context/ProductContext";
+import { getProducts, subscribeToNewsletter } from "@/lib/api";
 import heroBanner from "@/assets/hero-banner.jpg";
 
 const testimonials = [
@@ -14,17 +16,35 @@ const testimonials = [
 ];
 
 const Index = () => {
-  const { productList: products } = useProducts();
-  const bestSellers = products.filter((p) => p.badge === "Best Seller" || p.badge === "Popular").slice(0, 4);
-  const newArrivals = products.filter((p) => p.badge === "New" || p.badge === "Premium").slice(0, 4);
-  const sweetTreats = products.filter((p) => p.category === "cupcakes" || p.category === "cakes");
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [email, setEmail] = useState("");
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const items = await getProducts();
+        setAllProducts(items);
+      } catch (e) {
+        setAllProducts([]);
+      }
+    };
+    load();
+  }, []);
+
+  const bestSellers = allProducts
+    .filter((p) => p.badge === "Best Seller" || p.badge === "Popular")
+    .slice(0, 4);
+
+  const newArrivals = allProducts
+    .filter((p) => p.badge === "New" || p.badge === "Premium")
+    .slice(0, 4);
+
   return (
     <Layout>
-      {/* Hero */}
       <section className="relative overflow-hidden bg-primary-dark">
         <img
           src={heroBanner}
-          alt="Beautiful flower arrangements at Flora Belle"
+          alt="Beautiful flower arrangements at Ifeza flower shop"
           className="absolute inset-0 w-full h-full object-cover opacity-30"
         />
         <div className="relative container py-16 sm:py-24 lg:py-32">
@@ -61,14 +81,13 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Occasions */}
       <section className="py-10 sm:py-16">
         <div className="container">
           <div className="text-center mb-8">
             <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground">Shop by Occasion</h2>
             <p className="text-sm text-muted-foreground mt-1">Find the perfect arrangement for every moment</p>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
             {categories.map((cat, i) => (
               <motion.div
                 key={cat.id}
@@ -94,7 +113,6 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Best Sellers */}
       <section className="py-10 sm:py-16 bg-secondary">
         <div className="container">
           <div className="flex items-center justify-between mb-6">
@@ -109,7 +127,6 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Same-day delivery promo */}
       <section className="py-10 sm:py-16">
         <div className="container">
           <div className="rounded-2xl bg-primary p-6 sm:p-10 lg:p-14 flex flex-col lg:flex-row items-center gap-6 lg:gap-12">
@@ -143,23 +160,7 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Sweet Treats — Cakes & Cupcakes */}
       <section className="py-10 sm:py-16">
-        <div className="container">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground">🧁 Cakes & Cupcakes</h2>
-            <Link to="/shop?category=cupcakes" className="text-sm text-primary font-medium hover:underline">View All</Link>
-          </div>
-          <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {sweetTreats.map((p, i) => (
-              <ProductCard key={p.id} product={p} index={i} />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* New Arrivals */}
-      <section className="py-10 sm:py-16 bg-secondary">
         <div className="container">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground">New & Premium</h2>
@@ -173,7 +174,6 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Testimonials */}
       <section className="py-10 sm:py-16 bg-secondary">
         <div className="container">
           <div className="text-center mb-8">
@@ -201,7 +201,6 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Trust Section */}
       <section className="py-10 sm:py-16">
         <div className="container">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
@@ -224,16 +223,29 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Newsletter */}
       <section className="py-10 sm:py-16 bg-secondary">
         <div className="container max-w-2xl text-center">
           <Mail className="w-10 h-10 mx-auto mb-4 text-primary" />
           <h2 className="text-xl sm:text-2xl font-display font-bold text-foreground mb-2">Get Flower Inspiration</h2>
           <p className="text-sm text-muted-foreground mb-6">Subscribe for exclusive deals, seasonal arrangements, and flower care tips.</p>
-          <form className="flex flex-col sm:flex-row gap-3" onSubmit={(e) => { e.preventDefault(); toast("Subscribed! 🌸"); }}>
+          <form
+            className="flex flex-col sm:flex-row gap-3"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              try {
+                await subscribeToNewsletter(email);
+                toast("Subscribed! 🌸");
+                setEmail("");
+              } catch (error) {
+                toast("Subscription failed. Please try again.");
+              }
+            }}
+          >
             <input
               type="email"
               placeholder="Enter your email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               required
               className="flex-1 px-4 py-3 rounded-lg bg-background text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/30 text-sm border border-border"
             />

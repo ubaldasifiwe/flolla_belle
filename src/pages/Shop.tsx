@@ -1,11 +1,12 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { SlidersHorizontal, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import Layout from "@/components/Layout";
 import ProductCard from "@/components/ProductCard";
+import type { Product } from "@/data/products";
 import { categories, flowerTypes } from "@/data/products";
-import { useProducts } from "@/context/ProductContext";
+import { getProducts } from "@/lib/api";
 
 const sortOptions = [
   { value: "default", label: "Default" },
@@ -20,19 +21,33 @@ const Shop = () => {
   const activeCategory = searchParams.get("category") || "";
   const [activeFlowerType, setActiveFlowerType] = useState("");
   const [sort, setSort] = useState("default");
-  const { productList: products } = useProducts();
 
-  const filtered = useMemo(() => {
-    let result = [...products];
-    if (activeCategory) result = result.filter((p) => p.category === activeCategory);
-    if (activeFlowerType) result = result.filter((p) => p.flowerType === activeFlowerType);
-    switch (sort) {
-      case "price-asc": result.sort((a, b) => a.price - b.price); break;
-      case "price-desc": result.sort((a, b) => b.price - a.price); break;
-      case "rating": result.sort((a, b) => b.rating - a.rating); break;
-    }
-    return result;
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        setLoading(true);
+        setError("");
+        const data = await getProducts({
+          category: activeCategory || undefined,
+          flowerType: activeFlowerType || undefined,
+          sort,
+        });
+        setProducts(data);
+      } catch (e) {
+        setError("Failed to load products.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProducts();
   }, [activeCategory, activeFlowerType, sort]);
+
+  const filtered = useMemo(() => products, [products]);
 
   const setCategory = (cat: string) => {
     if (cat) setSearchParams({ category: cat });
@@ -42,7 +57,7 @@ const Shop = () => {
   const FilterContent = () => (
     <div className="space-y-6">
       <div>
-        <h3 className="font-semibold text-sm mb-3 text-foreground">Category</h3>
+        <h3 className="font-semibold text-sm mb-3 text-foreground">Occasion</h3>
         <div className="space-y-1">
           <button
             onClick={() => setCategory("")}
@@ -62,7 +77,7 @@ const Shop = () => {
         </div>
       </div>
       <div>
-        <h3 className="font-semibold text-sm mb-3 text-foreground">Product Type</h3>
+        <h3 className="font-semibold text-sm mb-3 text-foreground">Flower Type</h3>
         <div className="space-y-1">
           <button
             onClick={() => setActiveFlowerType("")}
@@ -70,13 +85,7 @@ const Shop = () => {
           >
             All Types
           </button>
-          {(activeCategory && ["liquor", "jewelry", "stuffed-toys"].includes(activeCategory)
-            ? products
-                .filter((p) => p.category === activeCategory)
-                .map((p) => p.flowerType)
-                .filter((v, i, a) => a.indexOf(v) === i)
-            : flowerTypes
-          ).map((type) => (
+          {flowerTypes.map((type) => (
             <button
               key={type}
               onClick={() => setActiveFlowerType(type)}
@@ -96,7 +105,7 @@ const Shop = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground">
-              {activeCategory ? categories.find((c) => c.id === activeCategory)?.name || "Shop" : "All Products"}
+              {activeCategory ? categories.find((c) => c.id === activeCategory)?.name || "Shop" : "All Flowers"}
             </h1>
             <p className="text-sm text-muted-foreground mt-1">{filtered.length} arrangements</p>
           </div>
@@ -124,12 +133,18 @@ const Shop = () => {
             <FilterContent />
           </aside>
           <div className="flex-1">
-            <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {filtered.map((p, i) => (
-                <ProductCard key={p.id} product={p} index={i} />
-              ))}
-            </div>
-            {filtered.length === 0 && (
+            {loading && <p className="text-sm text-muted-foreground mb-4">Loading products...</p>}
+            {error && <p className="text-sm text-destructive mb-4">{error}</p>}
+
+            {!loading && !error && (
+              <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {filtered.map((p, i) => (
+                  <ProductCard key={p.id} product={p} index={i} />
+                ))}
+              </div>
+            )}
+
+            {!loading && !error && filtered.length === 0 && (
               <div className="text-center py-20">
                 <p className="text-muted-foreground">No flowers found for this selection.</p>
               </div>

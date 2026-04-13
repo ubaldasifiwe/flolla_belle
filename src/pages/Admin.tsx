@@ -18,14 +18,22 @@ const sidebarItems = [
 ];
 
 const Admin = () => {
-  const { isAdmin, logout } = useAuth();
+  const { isAdmin, authLoading, logout } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
-    if (!isAdmin) navigate("/account");
-  }, [isAdmin, navigate]);
+    if (!authLoading && !isAdmin) navigate("/account");
+  }, [isAdmin, authLoading, navigate]);
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background text-muted-foreground">
+        Loading…
+      </div>
+    );
+  }
 
   if (!isAdmin) return null;
 
@@ -75,7 +83,9 @@ const Admin = () => {
             <Home className="w-4 h-4" /> Back to Store
           </Link>
           <button
-            onClick={() => { logout(); navigate("/account"); }}
+            onClick={() => {
+              void logout().then(() => navigate("/account"));
+            }}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
           >
             <LogOut className="w-4 h-4" /> Logout
@@ -118,8 +128,12 @@ const Admin = () => {
                 <Link to="/" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted/50">
                   <Home className="w-4 h-4" /> Back to Store
                 </Link>
-                <button onClick={() => { logout(); navigate("/account"); }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
+                <button
+                  onClick={() => {
+                    void logout().then(() => navigate("/account"));
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                >
                   <LogOut className="w-4 h-4" /> Logout
                 </button>
               </div>

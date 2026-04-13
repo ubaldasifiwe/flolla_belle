@@ -1,7 +1,10 @@
 import { useMemo, useState } from "react";
 import { categories, formatPrice, Product } from "@/data/products";
 import { useProducts } from "@/context/ProductContext";
-import { type Order, type OrderStatus, useOrders } from "@/context/OrderContext";
+import { type OrderStatus, useOrders } from "@/context/OrderContext";
+import type { Order } from "@/types/order";
+import type { DbCustomerRow } from "@/lib/api";
+import { adminCreateProduct, adminDeleteProduct, adminUpdateProduct, patchOrder } from "@/lib/api";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Package, ShoppingCart, Users, TrendingUp, DollarSign, Eye,
@@ -42,17 +45,6 @@ const PIE_COLORS = [
   "hsl(200, 70%, 50%)", "hsl(150, 60%, 45%)", "hsl(270, 50%, 55%)", "hsl(45, 90%, 55%)"
 ];
 
-const demoOrders: AdminOrderRow[] = [
-  { id: "ORD-1042", customer: "Marie Uwase", items: 3, total: 85000, status: "delivered", paid: true, date: "2025-03-26" },
-  { id: "ORD-1041", customer: "Jean Mugabo", items: 1, total: 35000, status: "processing", paid: true, date: "2025-03-26" },
-  { id: "ORD-1040", customer: "Alice Kamari", items: 5, total: 142000, status: "processing", paid: false, date: "2025-03-25" },
-  { id: "ORD-1039", customer: "David Habimana", items: 2, total: 67000, status: "delivered", paid: true, date: "2025-03-25" },
-  { id: "ORD-1038", customer: "Grace Ingabire", items: 4, total: 115000, status: "delivered", paid: true, date: "2025-03-24" },
-  { id: "ORD-1037", customer: "Samuel Niyonzima", items: 1, total: 22000, status: "cancelled", paid: false, date: "2025-03-24" },
-  { id: "ORD-1036", customer: "Diane Mukiza", items: 2, total: 55000, status: "delivered", paid: true, date: "2025-03-23" },
-  { id: "ORD-1035", customer: "Patrick Ndayisaba", items: 3, total: 98000, status: "delivered", paid: true, date: "2025-03-23" },
-];
-
 type AdminOrderRow = {
   id: string;
   customer: string;
@@ -69,6 +61,8 @@ type AdminOrderRow = {
   date: string;
   createdAt?: string;
   paymentMethod?: string;
+  paymentStatus?: string;
+  paymentReference?: string | null;
   lineItems?: Array<{
     name: string;
     image: string;
@@ -108,11 +102,37 @@ const paymentMethodLabel = (value?: string) => {
       return "MTN MoMo";
     case "airtel":
       return "Airtel Money";
+    case "card":
+      return "Card (Visa / Mastercard)";
     case "cod":
       return "Cash on Delivery";
     default:
       return value || "—";
   }
+};
+
+const paymentFlowLabel = (status: string, method?: string) => {
+  const s = (status || "").toLowerCase();
+  if (s === "paid" || s === "completed" || s === "captured") return "Paid";
+  if (s === "failed") return "Failed / declined";
+  if (s === "payment_requested") return "Prompt sent — awaiting PIN";
+  if (s === "awaiting_payment") {
+    if (method === "cod") return "COD";
+    if (method === "card") return "Awaiting card on Stripe";
+    return "Not initiated yet";
+  }
+  if (s === "pending" && method === "cod") return "COD — pay on delivery";
+  if (s === "pending") return "Pending";
+  return status || "—";
+};
+
+const paymentFlowBadgeClass = (status: string, paid: boolean) => {
+  if (paid) return "bg-green-100 text-green-700";
+  const s = (status || "").toLowerCase();
+  if (s === "failed") return "bg-red-100 text-red-700";
+  if (s === "payment_requested") return "bg-amber-100 text-amber-800";
+  if (s === "awaiting_payment") return "bg-sky-100 text-sky-800";
+  return "bg-muted text-muted-foreground";
 };
 
 const mapOrdersForAdmin = (orders: Order[]): AdminOrderRow[] =>
@@ -132,6 +152,8 @@ const mapOrdersForAdmin = (orders: Order[]): AdminOrderRow[] =>
     date: formatOrderDate(order.createdAt),
     createdAt: order.createdAt,
     paymentMethod: order.paymentMethod,
+    paymentStatus: order.paymentStatus,
+    paymentReference: order.paymentReference,
     lineItems: order.items,
   }));
 
@@ -167,6 +189,18 @@ const buildCustomerRows = (orders: AdminOrderRow[]): CustomerRow[] => {
   return Array.from(customers.values()).sort((a, b) => b.spent - a.spent);
 };
 
+const mapDbCustomersToRows = (rows: DbCustomerRow[]): CustomerRow[] =>
+  rows.map((r) => ({
+    name: r.name,
+    email: r.email || undefined,
+    phone: r.phone || undefined,
+    orders: r.order_count,
+    spent: Number(r.total_spent),
+    avatar: getInitials(r.name),
+    lastOrderDate: r.last_order_at ? formatOrderDate(r.last_order_at) : "—",
+    status: r.order_count > 1 ? "Repeat" : "New",
+  }));
+
 const statusIcon = (s: string) => {
   switch (s) {
     case "delivered": return <CheckCircle2 className="w-4 h-4 text-green-600" />;
@@ -188,23 +222,35 @@ const statusColor = (s: string) => {
 // ── Overview Tab ──
 export const OverviewTab = () => {
   const { productList } = useProducts();
-  const { orders } = useOrders();
+  const { orders, dbCustomers, ordersLoading } = useOrders();
   const liveOrders = useMemo(() => mapOrdersForAdmin(orders), [orders]);
-  const overviewOrders = liveOrders.length > 0 ? liveOrders : demoOrders;
-  const topCustomers = useMemo(() => buildCustomerRows(overviewOrders).slice(0, 5), [overviewOrders]);
+  const overviewOrders = liveOrders;
+  const topCustomers = useMemo(() => {
+    if (dbCustomers.length > 0) return mapDbCustomersToRows(dbCustomers).slice(0, 5);
+    return buildCustomerRows(overviewOrders).slice(0, 5);
+  }, [dbCustomers, overviewOrders]);
   const totalRevenue = overviewOrders.reduce((sum, order) => sum + order.total, 0);
   const totalOrders = overviewOrders.length;
   const avgOrderValue = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0;
 
   const stats = [
-    { label: "Total Revenue", value: `RWF ${(totalRevenue / 1000000).toFixed(1)}M`, change: "+18.2%", up: true, icon: DollarSign },
-    { label: "Total Orders", value: totalOrders.toString(), change: "+12.5%", up: true, icon: ShoppingCart },
-    { label: "Avg Order Value", value: formatPrice(avgOrderValue), change: "+4.1%", up: true, icon: TrendingUp },
+    {
+      label: "Total Revenue",
+      value: ordersLoading ? "…" : `RWF ${(totalRevenue / 1000000).toFixed(1)}M`,
+      change: "+18.2%",
+      up: true,
+      icon: DollarSign,
+    },
+    { label: "Total Orders", value: ordersLoading ? "…" : totalOrders.toString(), change: "+12.5%", up: true, icon: ShoppingCart },
+    { label: "Avg Order Value", value: ordersLoading ? "…" : formatPrice(avgOrderValue), change: "+4.1%", up: true, icon: TrendingUp },
     { label: "Products", value: productList.length.toString(), change: "+6", up: true, icon: Package },
   ];
 
   return (
     <div className="space-y-6">
+      {ordersLoading && (
+        <p className="text-sm text-muted-foreground">Syncing orders and customers from the database…</p>
+      )}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat, i) => (
           <motion.div key={stat.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
@@ -339,8 +385,8 @@ const emptyProduct = {
 
 // ── Products Tab with CRUD ──
 export const ProductsTab = () => {
-  const { productList, setProductList } = useProducts();
-  
+  const { productList, refreshProducts } = useProducts();
+
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("all");
   const [showForm, setShowForm] = useState(false);
@@ -379,65 +425,50 @@ export const ProductsTab = () => {
     setShowForm(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.name.trim() || formData.price <= 0) {
       toast.error("Please fill in product name and a valid price.");
       return;
     }
 
-    if (editingProduct) {
-      // Update existing
-      setProductList(prev =>
-        prev.map(p =>
-          p.id === editingProduct.id
-            ? {
-                ...p,
-                name: formData.name,
-                price: formData.price,
-                originalPrice: formData.originalPrice,
-                category: formData.category,
-                flowerType: formData.flowerType,
-                shortDescription: formData.shortDescription,
-                description: formData.description,
-                quantity: formData.quantity,
-                inStock: formData.quantity > 0,
-              }
-            : p
-        )
-      );
-      toast.success(`"${formData.name}" updated successfully!`);
-    } else {
-      // Add new
-      const newProduct: Product = {
-        id: `custom-${Date.now()}`,
-        name: formData.name,
-        price: formData.price,
-        originalPrice: formData.originalPrice,
-        image: formData.imageUrl || "/placeholder.svg",
-        images: formData.imageUrl ? [formData.imageUrl] : ["/placeholder.svg"],
-        category: formData.category,
-        flowerType: formData.flowerType,
-        rating: 0,
-        reviewCount: 0,
-        inStock: formData.quantity > 0,
-        quantity: formData.quantity,
-        shortDescription: formData.shortDescription,
-        description: formData.description,
-        sizes: [{ label: "Standard", price: formData.price }],
-      };
-      setProductList(prev => [newProduct, ...prev]);
-      toast.success(`"${formData.name}" added successfully!`);
-    }
+    const payload = {
+      name: formData.name.trim(),
+      price: formData.price,
+      originalPrice: formData.originalPrice,
+      category: formData.category,
+      flowerType: formData.flowerType,
+      shortDescription: formData.shortDescription,
+      description: formData.description,
+      quantity: formData.quantity,
+      imageUrl: formData.imageUrl,
+    };
 
-    setShowForm(false);
-    setEditingProduct(null);
+    try {
+      if (editingProduct) {
+        await adminUpdateProduct(editingProduct.id, payload);
+        toast.success(`"${formData.name}" updated successfully!`);
+      } else {
+        await adminCreateProduct(payload);
+        toast.success(`"${formData.name}" added successfully!`);
+      }
+      await refreshProducts();
+      setShowForm(false);
+      setEditingProduct(null);
+    } catch {
+      toast.error("Could not save product. Check the API and try again.");
+    }
   };
 
-  const handleDelete = (id: string) => {
-    const product = productList.find(p => p.id === id);
-    setProductList(prev => prev.filter(p => p.id !== id));
-    setDeleteConfirm(null);
-    toast.success(`"${product?.name}" deleted.`);
+  const handleDelete = async (id: string) => {
+    const product = productList.find((p) => p.id === id);
+    try {
+      await adminDeleteProduct(id);
+      await refreshProducts();
+      setDeleteConfirm(null);
+      toast.success(`"${product?.name}" deleted.`);
+    } catch {
+      toast.error("Could not delete product.");
+    }
   };
 
   return (
@@ -621,7 +652,7 @@ export const ProductsTab = () => {
 
 // ── Orders Tab ──
 export const OrdersTab = () => {
-  const { orders, updateOrderStatus } = useOrders();
+  const { orders, ordersLoading, updateOrderStatus, refreshOrdersAndCustomers } = useOrders();
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const adminOrders = useMemo(() => mapOrdersForAdmin(orders), [orders]);
@@ -635,9 +666,23 @@ export const OrdersTab = () => {
     { label: "Cancelled", count: adminOrders.filter(o => o.status === "cancelled").length, color: "text-red-500" },
   ];
 
-  const handleStatusChange = (orderId: string, status: OrderStatus) => {
-    updateOrderStatus(orderId, status);
-    toast.success(`Order ${orderId} marked as ${status}.`);
+  const handleStatusChange = async (orderId: string, status: OrderStatus) => {
+    try {
+      await updateOrderStatus(orderId, status);
+      toast.success(`Order ${orderId} marked as ${status}.`);
+    } catch {
+      toast.error("Could not update order status.");
+    }
+  };
+
+  const handlePaymentStatusChange = async (orderId: string, payment_status: string) => {
+    try {
+      await patchOrder(orderId, { payment_status });
+      await refreshOrdersAndCustomers();
+      toast.success("Payment status updated.");
+    } catch {
+      toast.error("Could not update payment status.");
+    }
   };
 
   return (
@@ -660,7 +705,9 @@ export const OrdersTab = () => {
 
       <div className="bg-card rounded-xl border border-border overflow-hidden">
         <div className="overflow-x-auto">
-          {adminOrders.length === 0 ? (
+          {ordersLoading ? (
+            <div className="p-8 text-center text-sm text-muted-foreground">Loading orders from the database…</div>
+          ) : adminOrders.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">
               No customer orders yet. Orders placed from checkout will appear here.
             </div>
@@ -673,6 +720,7 @@ export const OrdersTab = () => {
                   <th className="text-left p-4 font-medium text-muted-foreground">Items</th>
                   <th className="text-left p-4 font-medium text-muted-foreground">Total</th>
                   <th className="text-left p-4 font-medium text-muted-foreground">Payment</th>
+                  <th className="text-left p-4 font-medium text-muted-foreground">Pay status</th>
                   <th className="text-left p-4 font-medium text-muted-foreground">Status</th>
                   <th className="text-left p-4 font-medium text-muted-foreground">Date</th>
                   <th className="text-left p-4 font-medium text-muted-foreground">Actions</th>
@@ -685,10 +733,13 @@ export const OrdersTab = () => {
                     <td className="p-4 text-foreground">{o.customer}</td>
                     <td className="p-4 text-muted-foreground">{o.items}</td>
                     <td className="p-4 text-foreground font-medium">{formatPrice(o.total)}</td>
+                    <td className="p-4 text-muted-foreground text-xs">
+                      {paymentMethodLabel(o.paymentMethod)}
+                    </td>
                     <td className="p-4">
-                      <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium ${o.paid ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                        <CreditCard className="w-3.5 h-3.5" />
-                        {o.paid ? "Paid" : "Unpaid"}
+                      <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg font-medium ${paymentFlowBadgeClass(o.paymentStatus || "", o.paid)}`}>
+                        <CreditCard className="w-3.5 h-3.5 shrink-0" />
+                        {paymentFlowLabel(o.paymentStatus || "", o.paymentMethod)}
                       </span>
                     </td>
                     <td className="p-4">
@@ -710,6 +761,18 @@ export const OrdersTab = () => {
                           <option value="processing">Processing</option>
                           <option value="delivered">Delivered</option>
                           <option value="cancelled">Cancelled</option>
+                        </select>
+                        <select
+                          value={o.paymentStatus || "pending"}
+                          onChange={(e) => handlePaymentStatusChange(o.id, e.target.value)}
+                          className="w-full text-xs border border-border rounded-lg px-3 py-2 bg-background text-foreground outline-none"
+                          title="Payment record (e.g. mark COD collected as paid)"
+                        >
+                          <option value="pending">Payment: pending / COD</option>
+                          <option value="awaiting_payment">awaiting_payment</option>
+                          <option value="payment_requested">payment_requested</option>
+                          <option value="paid">paid</option>
+                          <option value="failed">failed</option>
                         </select>
                       </div>
                     </td>
@@ -747,15 +810,21 @@ export const OrdersTab = () => {
                 </div>
               </div>
 
-              <div className="rounded-lg border border-border p-4 space-y-3">
+                <div className="rounded-lg border border-border p-4 space-y-3">
                 <div className="flex flex-wrap gap-2 justify-between">
                   <div>
                     <p className="font-medium text-foreground">Payment</p>
                     <p className="text-muted-foreground">{paymentMethodLabel(selectedOrder.paymentMethod)}</p>
+                    <p className="text-muted-foreground text-xs mt-1">
+                      Status: {paymentFlowLabel(selectedOrder.paymentStatus || "", selectedOrder.paymentMethod)}
+                    </p>
+                    {selectedOrder.paymentReference ? (
+                      <p className="text-muted-foreground text-xs font-mono break-all">Ref: {selectedOrder.paymentReference}</p>
+                    ) : null}
                   </div>
-                  <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium ${selectedOrder.paid ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                  <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full font-medium ${paymentFlowBadgeClass(selectedOrder.paymentStatus || "", selectedOrder.paid)}`}>
                     <CreditCard className="w-3.5 h-3.5" />
-                    {selectedOrder.paid ? "Paid" : "Unpaid"}
+                    {selectedOrder.paid ? "Paid" : paymentFlowLabel(selectedOrder.paymentStatus || "", selectedOrder.paymentMethod)}
                   </span>
                 </div>
 
@@ -878,9 +947,12 @@ export const AnalyticsTab = () => {
 
 // ── Customers Tab ──
 export const CustomersTab = () => {
-  const { orders } = useOrders();
+  const { orders, dbCustomers, ordersLoading } = useOrders();
   const customerOrders = useMemo(() => mapOrdersForAdmin(orders), [orders]);
-  const customers = useMemo(() => buildCustomerRows(customerOrders), [customerOrders]);
+  const customers = useMemo(() => {
+    if (dbCustomers.length > 0) return mapDbCustomersToRows(dbCustomers);
+    return buildCustomerRows(customerOrders);
+  }, [dbCustomers, customerOrders]);
   const repeatCustomers = customers.filter((customer) => customer.orders > 1).length;
   const avgLifetimeValue = customers.length
     ? Math.round(customers.reduce((sum, customer) => sum + customer.spent, 0) / customers.length)
@@ -908,7 +980,9 @@ export const CustomersTab = () => {
           <h3 className="font-semibold text-foreground">All Customers</h3>
         </div>
         <div className="overflow-x-auto">
-          {customers.length === 0 ? (
+          {ordersLoading ? (
+            <div className="p-8 text-center text-sm text-muted-foreground">Loading customers…</div>
+          ) : customers.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">
               No customers yet. Once someone completes checkout, they will appear here.
             </div>
