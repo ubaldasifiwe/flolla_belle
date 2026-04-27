@@ -1,0 +1,690 @@
+import imgRosesPastel from "@/assets/products/roses-pastel.jpg";
+import imgBirthdayCake from "@/assets/products/birthday-cake.jpg";
+import imgWedding from "@/assets/products/wedding.jpg";
+import imgGardenTribute from "@/assets/products/garden-tribute.jpg";
+import imgLilyEveryday from "@/assets/products/lily-everyday.jpg";
+import imgRedWine from "@/assets/products/red-wine.jpg";
+import imgGoldNecklace from "@/assets/products/gold-necklace.jpg";
+import imgTeddyBear from "@/assets/products/teddy-bear.jpg";
+import imgRedRoses from "@/assets/products/red-roses.jpg";
+import imgPinkMixed from "@/assets/products/pink-mixed.jpg";
+import imgSunflowers from "@/assets/products/sunflowers.jpg";
+import imgHydrangea from "@/assets/products/hydrangea.jpg";
+import imgWhiteLily from "@/assets/products/white-lily.jpg";
+import imgOrchid from "@/assets/products/orchid.jpg";
+import imgRoseBox from "@/assets/products/rose-box.jpg";
+import imgChampagne from "@/assets/products/champagne.jpg";
+import imgAmarula from "@/assets/products/amarula.jpg";
+import imgWhisky from "@/assets/products/whisky.jpg";
+import imgPearlEarrings from "@/assets/products/pearl-earrings.jpg";
+import imgBracelet from "@/assets/products/bracelet.jpg";
+import imgBunnyPlush from "@/assets/products/bunny-plush.jpg";
+import imgLoveBear from "@/assets/products/love-bear.jpg";
+import imgCupcakesRose from "@/assets/products/cupcakes-rose.jpg";
+import imgCupcakesAssorted from "@/assets/products/cupcakes-assorted.jpg";
+import imgCupcakesRedvelvet from "@/assets/products/cupcakes-redvelvet.jpg";
+import imgCakeWedding from "@/assets/products/cake-wedding.jpg";
+import imgCakeBirthday from "@/assets/products/cake-birthday.jpg";
+import imgCakeChocolate from "@/assets/products/cake-chocolate.jpg";
+
+export interface ProductSize {
+  label: string;
+  price: number;
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  price: number;
+  originalPrice?: number;
+  image: string;
+  images: string[];
+  category: string;
+  flowerType: string;
+  rating: number;
+  reviewCount: number;
+  inStock: boolean;
+  quantity: number;
+  badge?: string;
+  shortDescription: string;
+  description: string;
+  sizes: ProductSize[];
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  image: string;
+  productCount: number;
+  emoji: string;
+}
+
+export const categories: Category[] = [
+  { id: "love", name: "Love & Romance", image: imgRosesPastel, productCount: 24, emoji: "❤️" },
+  { id: "birthday", name: "Birthday", image: imgBirthdayCake, productCount: 18, emoji: "🎂" },
+  { id: "wedding", name: "Wedding", image: imgWedding, productCount: 15, emoji: "💒" },
+  { id: "sympathy", name: "Sympathy", image: imgRosesPastel, productCount: 12, emoji: "🕊️" },
+  { id: "congratulations", name: "Congratulations", image: imgGardenTribute, productCount: 10, emoji: "🎉" },
+  { id: "everyday", name: "Everyday", image: imgLilyEveryday, productCount: 20, emoji: "🌸" },
+  { id: "liquor", name: "Liquor & Wine", image: imgRedWine, productCount: 8, emoji: "🍷" },
+  { id: "jewelry", name: "Jewelry", image: imgGoldNecklace, productCount: 6, emoji: "💎" },
+  { id: "stuffed-toys", name: "Stuffed Toys", image: imgTeddyBear, productCount: 6, emoji: "🧸" },
+  { id: "cupcakes", name: "Cupcakes", image: imgCupcakesRose, productCount: 3, emoji: "🧁" },
+  { id: "cakes", name: "Cakes", image: imgCakeBirthday, productCount: 3, emoji: "🎂" },
+];
+
+export const flowerTypes = [
+  "Roses",
+  "Lilies",
+  "Sunflowers",
+  "Orchids",
+  "Mixed Bouquet",
+  "Tulips",
+  "Carnations",
+  "Hydrangeas",
+];
+
+export const productTypes = [
+  "Red Wine",
+  "White Wine",
+  "Champagne",
+  "Whisky",
+  "Necklace",
+  "Bracelet",
+  "Earrings",
+  "Ring",
+  "Teddy Bear",
+  "Plush Animal",
+  "Character Plush",
+  "Cupcakes",
+  "Birthday Cake",
+  "Wedding Cake",
+  "Chocolate Cake",
+];
+
+export let products: Product[] = [
+  {
+    id: "1",
+    name: "Red Rose Romance Bouquet",
+    price: 35000,
+    originalPrice: 45000,
+    image: imgRedRoses,
+    images: [imgRedRoses, imgRosesPastel, imgPinkMixed],
+    category: "love",
+    flowerType: "Roses",
+    rating: 4.9,
+    reviewCount: 156,
+    inStock: true,
+    quantity: 50,
+    badge: "Best Seller",
+    shortDescription: "24 premium long-stem red roses, hand-tied with satin ribbon.",
+    description: "Express your deepest love with our signature bouquet of 24 premium long-stem red roses. Each rose is carefully selected from the finest Rwandan farms, hand-arranged and tied with luxurious satin ribbon. Comes with complimentary greenery and baby's breath.",
+    sizes: [
+      { label: "Small (12 roses)", price: 25000 },
+      { label: "Medium (24 roses)", price: 35000 },
+      { label: "Large (50 roses)", price: 65000 },
+    ],
+  },
+  {
+    id: "2",
+    name: "Sunshine Sunflower Arrangement",
+    price: 28000,
+    image: imgSunflowers,
+    images: [imgSunflowers, imgHydrangea],
+    category: "birthday",
+    flowerType: "Sunflowers",
+    rating: 4.7,
+    reviewCount: 89,
+    inStock: true,
+    quantity: 50,
+    badge: "Popular",
+    shortDescription: "Bright sunflowers to light up any birthday celebration.",
+    description: "A vibrant arrangement of fresh sunflowers paired with seasonal greenery and rustic accents. Perfect for birthdays and celebrations, this arrangement radiates warmth and joy.",
+    sizes: [
+      { label: "Small (5 stems)", price: 18000 },
+      { label: "Medium (10 stems)", price: 28000 },
+      { label: "Large (15 stems)", price: 42000 },
+    ],
+  },
+  {
+    id: "3",
+    name: "Elegant White Lily Cascade",
+    price: 48000,
+    originalPrice: 58000,
+    image: imgWhiteLily,
+    images: [imgWhiteLily, imgLilyEveryday],
+    category: "wedding",
+    flowerType: "Lilies",
+    rating: 4.8,
+    reviewCount: 67,
+    inStock: true,
+    quantity: 50,
+    badge: "Premium",
+    shortDescription: "Stunning white lilies for weddings and elegant occasions.",
+    description: "An exquisite cascade of pure white Oriental lilies, accented with delicate eucalyptus and soft greenery. Ideal for weddings, anniversaries, or any occasion that calls for timeless elegance.",
+    sizes: [
+      { label: "Small", price: 35000 },
+      { label: "Medium", price: 48000 },
+      { label: "Large", price: 72000 },
+    ],
+  },
+  {
+    id: "4",
+    name: "Peaceful Garden Tribute",
+    price: 42000,
+    image: imgGardenTribute,
+    images: [imgGardenTribute],
+    category: "sympathy",
+    flowerType: "Mixed Bouquet",
+    rating: 4.9,
+    reviewCount: 43,
+    inStock: true,
+    quantity: 50,
+    shortDescription: "A gentle arrangement for moments of remembrance.",
+    description: "A serene and thoughtful arrangement of white roses, lilies, and soft greenery. Designed to convey your heartfelt condolences with grace and beauty.",
+    sizes: [
+      { label: "Standard", price: 42000 },
+      { label: "Deluxe", price: 65000 },
+    ],
+  },
+  {
+    id: "5",
+    name: "Pink Paradise Mixed Bouquet",
+    price: 32000,
+    originalPrice: 40000,
+    image: imgPinkMixed,
+    images: [imgPinkMixed, imgRosesPastel],
+    category: "birthday",
+    flowerType: "Mixed Bouquet",
+    rating: 4.6,
+    reviewCount: 112,
+    inStock: true,
+    quantity: 50,
+    badge: "Sale",
+    shortDescription: "A vibrant mix of pink roses, carnations, and seasonal blooms.",
+    description: "Celebrate in style with this gorgeous mixed bouquet featuring pink roses, spray carnations, wax flowers, and lush greenery. A perfect gift for birthdays, thank-yous, or just because.",
+    sizes: [
+      { label: "Small", price: 22000 },
+      { label: "Medium", price: 32000 },
+      { label: "Large", price: 50000 },
+    ],
+  },
+  {
+    id: "6",
+    name: "Purple Orchid Elegance",
+    price: 55000,
+    image: imgOrchid,
+    images: [imgOrchid],
+    category: "congratulations",
+    flowerType: "Orchids",
+    rating: 4.8,
+    reviewCount: 54,
+    inStock: true,
+    quantity: 50,
+    badge: "Luxury",
+    shortDescription: "Exotic purple orchids in a ceramic vase.",
+    description: "A stunning display of exotic purple Phalaenopsis orchids presented in an elegant white ceramic vase. These long-lasting blooms make a perfect congratulatory or thank-you gift.",
+    sizes: [
+      { label: "Single Stem", price: 35000 },
+      { label: "Double Stem", price: 55000 },
+      { label: "Triple Stem", price: 80000 },
+    ],
+  },
+  {
+    id: "7",
+    name: "Pastel Tulip Dream",
+    price: 30000,
+    image: imgRosesPastel,
+    images: [imgRosesPastel],
+    category: "everyday",
+    flowerType: "Tulips",
+    rating: 4.5,
+    reviewCount: 78,
+    inStock: true,
+    quantity: 50,
+    shortDescription: "Soft pastel tulips wrapped in kraft paper.",
+    description: "A charming bouquet of fresh pastel tulips in shades of pink, lavender, and white, wrapped in natural kraft paper. Simple, beautiful, and perfect for everyday joy.",
+    sizes: [
+      { label: "Small (10 tulips)", price: 20000 },
+      { label: "Medium (20 tulips)", price: 30000 },
+      { label: "Large (30 tulips)", price: 45000 },
+    ],
+  },
+  {
+    id: "8",
+    name: "Romantic Rose & Lily Duo",
+    price: 45000,
+    originalPrice: 55000,
+    image: imgLilyEveryday,
+    images: [imgLilyEveryday, imgRedRoses],
+    category: "love",
+    flowerType: "Mixed Bouquet",
+    rating: 4.7,
+    reviewCount: 91,
+    inStock: true,
+    quantity: 50,
+    badge: "Sale",
+    shortDescription: "Roses and lilies together in a romantic arrangement.",
+    description: "The perfect combination of passion and purity — red roses and white lilies come together in this stunning arrangement, accented with baby's breath and eucalyptus.",
+    sizes: [
+      { label: "Standard", price: 45000 },
+      { label: "Premium", price: 68000 },
+    ],
+  },
+  {
+    id: "9",
+    name: "Bright Carnation Burst",
+    price: 18000,
+    image: imgBirthdayCake,
+    images: [imgBirthdayCake],
+    category: "everyday",
+    flowerType: "Carnations",
+    rating: 4.3,
+    reviewCount: 65,
+    inStock: true,
+    quantity: 50,
+    shortDescription: "Colorful carnations for a cheerful vibe.",
+    description: "A budget-friendly yet beautiful bunch of mixed carnations in cheerful colors. Long-lasting and fragrant, they're perfect for brightening up any space.",
+    sizes: [
+      { label: "Small", price: 12000 },
+      { label: "Medium", price: 18000 },
+      { label: "Large", price: 28000 },
+    ],
+  },
+  {
+    id: "10",
+    name: "Grand Wedding Centerpiece",
+    price: 85000,
+    originalPrice: 100000,
+    image: imgWedding,
+    images: [imgWedding],
+    category: "wedding",
+    flowerType: "Mixed Bouquet",
+    rating: 4.9,
+    reviewCount: 34,
+    inStock: true,
+    quantity: 50,
+    badge: "Premium",
+    shortDescription: "Luxurious centerpiece for your special day.",
+    description: "A grand floral centerpiece featuring white roses, peonies, hydrangeas, and cascading greenery. Designed to be the stunning focal point of your wedding table.",
+    sizes: [
+      { label: "Standard", price: 85000 },
+      { label: "Grand", price: 120000 },
+    ],
+  },
+  {
+    id: "11",
+    name: "Blue Hydrangea Cloud",
+    price: 38000,
+    image: imgHydrangea,
+    images: [imgHydrangea],
+    category: "congratulations",
+    flowerType: "Hydrangeas",
+    rating: 4.6,
+    reviewCount: 47,
+    inStock: false,
+    quantity: 0,
+    shortDescription: "Dreamy blue hydrangeas in a glass vase.",
+    description: "A cloud-like arrangement of beautiful blue hydrangeas displayed in a clear glass vase. Their stunning color and full blooms make any room feel magical.",
+    sizes: [
+      { label: "Small", price: 28000 },
+      { label: "Medium", price: 38000 },
+      { label: "Large", price: 55000 },
+    ],
+  },
+  {
+    id: "12",
+    name: "Classic Red Rose Box",
+    price: 50000,
+    image: imgRoseBox,
+    images: [imgRoseBox],
+    category: "love",
+    flowerType: "Roses",
+    rating: 4.8,
+    reviewCount: 128,
+    inStock: true,
+    quantity: 50,
+    badge: "New",
+    shortDescription: "Roses in a luxury hat box.",
+    description: "Premium red roses elegantly arranged in a luxurious round hat box. The ultimate romantic gesture for Valentine's Day, anniversaries, or any day you want to say 'I love you'.",
+    sizes: [
+      { label: "Petite (12 roses)", price: 35000 },
+      { label: "Classic (25 roses)", price: 50000 },
+      { label: "Grand (50 roses)", price: 90000 },
+    ],
+  },
+  // ── Liquor & Wine ──
+  {
+    id: "13",
+    name: "Moët & Chandon Brut Imperial",
+    price: 65000,
+    image: imgChampagne,
+    images: [imgChampagne],
+    category: "liquor",
+    flowerType: "Champagne",
+    rating: 4.9,
+    reviewCount: 42,
+    inStock: true,
+    quantity: 50,
+    badge: "Premium",
+    shortDescription: "Celebrate in style with this iconic French champagne.",
+    description: "Moët & Chandon Brut Imperial is the House's iconic champagne. Bright fruitiness, a seductive palate and an elegant maturity — perfect for gifting alongside flowers.",
+    sizes: [
+      { label: "375ml", price: 38000 },
+      { label: "750ml", price: 65000 },
+      { label: "Magnum (1.5L)", price: 120000 },
+    ],
+  },
+  {
+    id: "14",
+    name: "Amarula Cream Liqueur",
+    price: 22000,
+    image: imgAmarula,
+    images: [imgAmarula],
+    category: "liquor",
+    flowerType: "Cream Liqueur",
+    rating: 4.5,
+    reviewCount: 67,
+    inStock: true,
+    quantity: 50,
+    shortDescription: "Smooth African cream liqueur made from marula fruit.",
+    description: "Amarula is a smooth, creamy liqueur crafted from the exotic marula fruit found in sub-Saharan Africa. Wonderfully paired with a bouquet for a uniquely African gift.",
+    sizes: [
+      { label: "375ml", price: 14000 },
+      { label: "750ml", price: 22000 },
+    ],
+  },
+  {
+    id: "15",
+    name: "Johnnie Walker Black Label",
+    price: 48000,
+    originalPrice: 55000,
+    image: imgWhisky,
+    images: [imgWhisky],
+    category: "liquor",
+    flowerType: "Whisky",
+    rating: 4.7,
+    reviewCount: 53,
+    inStock: true,
+    quantity: 50,
+    badge: "Sale",
+    shortDescription: "Iconic blended Scotch whisky with rich, smoky character.",
+    description: "Johnnie Walker Black Label is a masterful blend of whiskies from across Scotland, aged for at least 12 years. A classic gift for the whisky lover.",
+    sizes: [
+      { label: "750ml", price: 48000 },
+      { label: "1L", price: 62000 },
+    ],
+  },
+  {
+    id: "16",
+    name: "Cape Mentelle Cabernet Sauvignon",
+    price: 35000,
+    image: imgRedWine,
+    images: [imgRedWine],
+    category: "liquor",
+    flowerType: "Red Wine",
+    rating: 4.6,
+    reviewCount: 29,
+    inStock: true,
+    quantity: 50,
+    shortDescription: "Full-bodied red wine with blackcurrant and cedar notes.",
+    description: "A distinguished Cabernet Sauvignon from Margaret River, Australia. Dark fruits, fine tannins, and a long finish make this wine a perfect companion to a romantic evening.",
+    sizes: [
+      { label: "750ml", price: 35000 },
+    ],
+  },
+  // ── Jewelry ──
+  {
+    id: "17",
+    name: "Gold Heart Pendant Necklace",
+    price: 45000,
+    image: imgGoldNecklace,
+    images: [imgGoldNecklace],
+    category: "jewelry",
+    flowerType: "Necklace",
+    rating: 4.8,
+    reviewCount: 84,
+    inStock: true,
+    quantity: 50,
+    badge: "Best Seller",
+    shortDescription: "Elegant 18k gold-plated heart pendant on a delicate chain.",
+    description: "A timeless gold heart pendant necklace, beautifully crafted with 18k gold plating. The perfect romantic gift to pair with a bouquet of roses. Comes in a velvet gift box.",
+    sizes: [
+      { label: "16-inch chain", price: 42000 },
+      { label: "18-inch chain", price: 45000 },
+      { label: "20-inch chain", price: 48000 },
+    ],
+  },
+  {
+    id: "18",
+    name: "Pearl Drop Earrings",
+    price: 28000,
+    image: imgPearlEarrings,
+    images: [imgPearlEarrings],
+    category: "jewelry",
+    flowerType: "Earrings",
+    rating: 4.7,
+    reviewCount: 61,
+    inStock: true,
+    quantity: 50,
+    shortDescription: "Classic freshwater pearl earrings with sterling silver hooks.",
+    description: "These elegant freshwater pearl drop earrings feature lustrous pearls on sterling silver hooks. A sophisticated gift for birthdays, anniversaries, or just because.",
+    sizes: [
+      { label: "Standard", price: 28000 },
+    ],
+  },
+  {
+    id: "19",
+    name: "Rose Gold Crystal Bracelet",
+    price: 32000,
+    originalPrice: 40000,
+    image: imgBracelet,
+    images: [imgBracelet],
+    category: "jewelry",
+    flowerType: "Bracelet",
+    rating: 4.6,
+    reviewCount: 39,
+    inStock: true,
+    quantity: 50,
+    badge: "Sale",
+    shortDescription: "Sparkling crystal bracelet in beautiful rose gold finish.",
+    description: "A stunning rose gold bracelet adorned with brilliant-cut crystals. Adjustable clasp fits most wrist sizes. Arrives in a premium gift box — pair with flowers for the ultimate gift.",
+    sizes: [
+      { label: "Standard (17cm)", price: 32000 },
+      { label: "Large (19cm)", price: 34000 },
+    ],
+  },
+  // ── Stuffed Toys ──
+  {
+    id: "20",
+    name: "Classic Red Teddy Bear",
+    price: 18000,
+    image: imgTeddyBear,
+    images: [imgTeddyBear],
+    category: "stuffed-toys",
+    flowerType: "Teddy Bear",
+    rating: 4.8,
+    reviewCount: 132,
+    inStock: true,
+    quantity: 50,
+    badge: "Best Seller",
+    shortDescription: "Soft, cuddly teddy bear with a cute red bow tie.",
+    description: "This adorable plush teddy bear is the perfect add-on to any flower order. Super soft polyester filling, a charming red bow tie, and an irresistibly huggable 30cm size. Great for Valentine's, birthdays, or new babies.",
+    sizes: [
+      { label: "Small (20cm)", price: 12000 },
+      { label: "Medium (30cm)", price: 18000 },
+      { label: "Large (50cm)", price: 35000 },
+    ],
+  },
+  {
+    id: "21",
+    name: "Giant Pink Bunny Plush",
+    price: 25000,
+    image: imgBunnyPlush,
+    images: [imgBunnyPlush],
+    category: "stuffed-toys",
+    flowerType: "Plush Animal",
+    rating: 4.6,
+    reviewCount: 47,
+    inStock: true,
+    quantity: 50,
+    badge: "New",
+    shortDescription: "Adorable giant pink bunny — a lovable companion for all ages.",
+    description: "This oversized pink bunny plush is impossibly soft and undeniably cute. With floppy ears and a sweet embroidered face, it makes the perfect gift for children and loved ones alike.",
+    sizes: [
+      { label: "Medium (35cm)", price: 25000 },
+      { label: "Giant (60cm)", price: 45000 },
+    ],
+  },
+  {
+    id: "22",
+    name: "Love Bear with Heart Pillow",
+    price: 22000,
+    image: imgLoveBear,
+    images: [imgLoveBear],
+    category: "stuffed-toys",
+    flowerType: "Teddy Bear",
+    rating: 4.7,
+    reviewCount: 88,
+    inStock: true,
+    quantity: 50,
+    badge: "Popular",
+    shortDescription: "Plush bear holding an 'I Love You' heart cushion.",
+    description: "Say 'I Love You' with this charming teddy bear clutching a satin heart pillow. Perfect for Valentine's Day, anniversaries, or surprising your special someone alongside a fresh bouquet.",
+    sizes: [
+      { label: "Standard (25cm)", price: 22000 },
+      { label: "Large (40cm)", price: 38000 },
+    ],
+  },
+  // ── Cupcakes ──
+  {
+    id: "23",
+    name: "Rose Frosting Chocolate Cupcakes",
+    price: 15000,
+    image: imgCupcakesRose,
+    images: [imgCupcakesRose],
+    category: "cupcakes",
+    flowerType: "Cupcakes",
+    rating: 4.8,
+    reviewCount: 76,
+    inStock: true,
+    quantity: 50,
+    badge: "Best Seller",
+    shortDescription: "Rich chocolate cupcakes topped with pink rose buttercream.",
+    description: "Indulge in our handcrafted chocolate cupcakes crowned with beautiful pink rose-shaped buttercream frosting. Perfect as a gift add-on or standalone treat for any celebration.",
+    sizes: [
+      { label: "Box of 4", price: 10000 },
+      { label: "Box of 6", price: 15000 },
+      { label: "Box of 12", price: 28000 },
+    ],
+  },
+  {
+    id: "24",
+    name: "Assorted Celebration Cupcakes",
+    price: 18000,
+    image: imgCupcakesAssorted,
+    images: [imgCupcakesAssorted],
+    category: "cupcakes",
+    flowerType: "Cupcakes",
+    rating: 4.6,
+    reviewCount: 54,
+    inStock: true,
+    quantity: 50,
+    badge: "Popular",
+    shortDescription: "Colorful assorted cupcakes in a beautiful gift box.",
+    description: "A delightful box of assorted gourmet cupcakes with colorful swirl frosting and sprinkles. Each cupcake is a different flavor — vanilla, chocolate, strawberry, and lemon. Perfect for parties and gifts.",
+    sizes: [
+      { label: "Box of 6", price: 18000 },
+      { label: "Box of 12", price: 32000 },
+    ],
+  },
+  {
+    id: "25",
+    name: "Red Velvet Love Cupcakes",
+    price: 16000,
+    image: imgCupcakesRedvelvet,
+    images: [imgCupcakesRedvelvet],
+    category: "cupcakes",
+    flowerType: "Cupcakes",
+    rating: 4.9,
+    reviewCount: 93,
+    inStock: true,
+    quantity: 50,
+    badge: "New",
+    shortDescription: "Classic red velvet cupcakes with cream cheese frosting & heart sprinkles.",
+    description: "Our signature red velvet cupcakes feature moist, velvety cake topped with silky cream cheese frosting and adorable heart sprinkles. A romantic treat perfect for Valentine's Day or anniversaries.",
+    sizes: [
+      { label: "Box of 4", price: 12000 },
+      { label: "Box of 6", price: 16000 },
+      { label: "Box of 12", price: 30000 },
+    ],
+  },
+  // ── Cakes ──
+  {
+    id: "26",
+    name: "Elegant Floral Wedding Cake",
+    price: 95000,
+    image: imgCakeWedding,
+    images: [imgCakeWedding],
+    category: "cakes",
+    flowerType: "Wedding Cake",
+    rating: 4.9,
+    reviewCount: 28,
+    inStock: true,
+    quantity: 50,
+    badge: "Premium",
+    shortDescription: "Two-tier white wedding cake adorned with fresh flowers.",
+    description: "A stunning two-tier wedding cake with smooth white fondant, decorated with fresh pink roses and daisies. Customize flavors and fillings to make your special day unforgettable.",
+    sizes: [
+      { label: "2-Tier (serves 30)", price: 95000 },
+      { label: "3-Tier (serves 60)", price: 150000 },
+    ],
+  },
+  {
+    id: "27",
+    name: "Birthday Celebration Cake",
+    price: 35000,
+    image: imgCakeBirthday,
+    images: [imgCakeBirthday],
+    category: "cakes",
+    flowerType: "Birthday Cake",
+    rating: 4.7,
+    reviewCount: 112,
+    inStock: true,
+    quantity: 50,
+    badge: "Popular",
+    shortDescription: "Festive birthday cake with sprinkles and candles.",
+    description: "Make birthdays extra special with our colorful celebration cake! Moist vanilla sponge layered with buttercream, covered in rainbow sprinkles and topped with candles. Available in multiple sizes.",
+    sizes: [
+      { label: "Small (serves 8)", price: 25000 },
+      { label: "Medium (serves 16)", price: 35000 },
+      { label: "Large (serves 24)", price: 50000 },
+    ],
+  },
+  {
+    id: "28",
+    name: "Dark Chocolate Berry Cake",
+    price: 42000,
+    originalPrice: 50000,
+    image: imgCakeChocolate,
+    images: [imgCakeChocolate],
+    category: "cakes",
+    flowerType: "Chocolate Cake",
+    rating: 4.8,
+    reviewCount: 67,
+    inStock: true,
+    quantity: 50,
+    badge: "Sale",
+    shortDescription: "Rich chocolate cake with ganache drip and fresh berries.",
+    description: "An irresistible dark chocolate layer cake with velvety ganache drip, topped with fresh raspberries, blueberries, and blackberries. A chocolate lover's dream and an impressive gift for any occasion.",
+    sizes: [
+      { label: "Small (serves 8)", price: 30000 },
+      { label: "Medium (serves 16)", price: 42000 },
+      { label: "Large (serves 24)", price: 60000 },
+    ],
+  },
+];
+
+export const formatPrice = (price: number): string => {
+  return `RWF ${price.toLocaleString("en-RW")}`;
+};
