@@ -8,7 +8,6 @@ import newsletterRoutes from './routes/newsletterRoutes.js';
 import customerRoutes from './routes/customerRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import authRoutes from './routes/authRoutes.js';
-import { stripeWebhookHandler } from './controllers/stripeCardController.js';
 
 const app = express();
 
@@ -21,14 +20,6 @@ app.use(
   })
 );
 app.use(cookieParser());
-
-// Stripe webhooks require the raw body for signature verification (must be before express.json())
-app.post(
-  '/api/payments/card/webhook',
-  express.raw({ type: 'application/json' }),
-  stripeWebhookHandler
-);
-
 app.use(express.json());
 
 // Health check

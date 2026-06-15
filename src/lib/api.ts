@@ -45,6 +45,7 @@ export type BackendOrderItem = {
   size_label?: string | null;
   unit_price: number;
   quantity: number;
+  custom_message?: string | null;
   image_url?: string | null;
 };
 
@@ -155,6 +156,7 @@ export function mapBackendOrderToOrder(row: BackendOrderRow): Order {
     image: it.image_url || "/placeholder.svg",
     price: Number(it.unit_price),
     quantity: Number(it.quantity),
+    customMessage: it.custom_message ?? null,
   }));
 
   const itemCount = items.reduce((s, i) => s + i.quantity, 0);
@@ -243,7 +245,7 @@ export async function initiateMobilePayment(body: {
   return data;
 }
 
-export async function createCardCheckoutSession(orderId: number | string): Promise<{ url: string; sessionId?: string }> {
+export async function createCardCheckoutSession(orderId: number | string): Promise<{ url: string; txRef?: string }> {
   const res = await apiFetch(`${API_BASE}/payments/card/session`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -252,17 +254,24 @@ export async function createCardCheckoutSession(orderId: number | string): Promi
   const data = (await res.json().catch(() => ({}))) as { url?: string; message?: string };
   if (!res.ok) throw new Error(data.message || "Could not start card checkout");
   if (!data.url) throw new Error("No checkout URL returned");
-  return data as { url: string; sessionId?: string };
+  return data as { url: string; txRef?: string };
 }
 
-export async function completeCardCheckoutSession(sessionId: string): Promise<{
+export async function completeCardCheckoutSession(params: {
+  transactionId?: string | null;
+  txRef?: string | null;
+  status?: string | null;
+}): Promise<{
   paid: boolean;
   orderId?: number;
   payment_status?: string;
 }> {
-  const res = await apiFetch(
-    `${API_BASE}/payments/card/complete?session_id=${encodeURIComponent(sessionId)}`
-  );
+  const qs = new URLSearchParams();
+  if (params.transactionId) qs.set("transaction_id", params.transactionId);
+  if (params.txRef) qs.set("tx_ref", params.txRef);
+  if (params.status) qs.set("status", params.status);
+
+  const res = await apiFetch(`${API_BASE}/payments/card/complete?${qs.toString()}`);
   const data = (await res.json().catch(() => ({}))) as {
     paid?: boolean;
     orderId?: number;

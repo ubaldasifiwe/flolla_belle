@@ -17,7 +17,7 @@ const ProductCard = ({ product, index = 0 }: Props) => {
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
     if (!product.inStock) return;
-    addToCart(product);
+    addToCart(product, 1);
     toast.success(`${product.name} added to cart`);
   };
 

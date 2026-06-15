@@ -6,7 +6,8 @@ import { useCart } from "@/context/CartContext";
 import { formatPrice } from "@/data/products";
 
 const Cart = () => {
-  const { items, updateQuantity, removeFromCart, subtotal, deliveryFee, total, itemCount } = useCart();
+  const { items, updateQuantity, updateCustomMessage, removeFromCart, subtotal, deliveryFee, total, itemCount } =
+    useCart();
 
   if (items.length === 0) {
     return (
@@ -45,6 +46,22 @@ const Cart = () => {
                     {item.product.name}
                   </Link>
                   <p className="text-sm font-bold text-foreground mt-1">{formatPrice(item.product.price)}</p>
+                  <div className="mt-3">
+                    <label className="text-xs font-medium text-muted-foreground block mb-1">
+                      Personal message (optional)
+                    </label>
+                    <textarea
+                      value={item.customMessage || ""}
+                      onChange={(e) => updateCustomMessage(item.product.id, e.target.value)}
+                      placeholder="e.g. Happy birthday! With love…"
+                      rows={2}
+                      maxLength={200}
+                      className="w-full px-3 py-2 rounded-lg bg-secondary text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/30 text-xs border border-border resize-none"
+                    />
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      {(item.customMessage?.length || 0)}/200
+                    </p>
+                  </div>
                   <div className="flex items-center justify-between mt-2">
                     <div className="flex items-center border border-border rounded-lg">
                       <button onClick={() => updateQuantity(item.product.id, item.quantity - 1)} className="px-2 py-1.5 hover:bg-secondary transition-colors text-foreground">

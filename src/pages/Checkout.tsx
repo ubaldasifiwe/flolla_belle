@@ -123,7 +123,7 @@ const Checkout = () => {
           sizeLabel: item.product.sizes?.[0]?.label || null,
           unitPrice: item.product.price,
           quantity: item.quantity,
-          customMessage: null,
+          customMessage: item.customMessage || null,
           imageUrl: typeof item.product.image === "string" ? item.product.image : "",
         })),
       };
@@ -152,7 +152,7 @@ const Checkout = () => {
           clearCart();
           window.location.assign(url);
         } catch (e) {
-          toast.error(e instanceof Error ? e.message : "Could not start card payment. Is Stripe configured?");
+          toast.error(e instanceof Error ? e.message : "Could not start card payment. Is Flutterwave configured?");
         }
         return;
       }
@@ -333,7 +333,7 @@ const Checkout = () => {
                     {
                       id: "card",
                       label: "Card (Visa, Mastercard…)",
-                      desc: "Secure checkout — you will pay on a Stripe page (test mode available)",
+                      desc: "Secure checkout on Flutterwave (cards, Visa, Mastercard, and more)",
                     },
                     { id: "cod", label: "Cash on Delivery", desc: "Pay when you receive your flowers" },
                   ].map((method) => (
@@ -370,7 +370,7 @@ const Checkout = () => {
                           : form.paymentMethod === "airtel"
                             ? "Airtel Money"
                             : form.paymentMethod === "card"
-                              ? "Card (Visa / Mastercard via Stripe)"
+                              ? "Card (Visa / Mastercard via Flutterwave)"
                               : "Cash on Delivery"}
                       </p>
                     </div>
@@ -392,7 +392,7 @@ const Checkout = () => {
                   {form.paymentMethod === "card" ? (
                     <p className="text-xs text-muted-foreground bg-muted/40 rounded-lg p-3 flex items-start gap-2">
                       <CreditCard className="w-4 h-4 shrink-0 mt-0.5 text-primary" />
-                      After you place the order, you will be redirected to a secure payment page to enter your card. Your card details never touch our servers.
+                      After you place the order, you will be redirected to Flutterwave to complete payment securely. Your card details never touch our servers.
                     </p>
                   ) : null}
                 </div>

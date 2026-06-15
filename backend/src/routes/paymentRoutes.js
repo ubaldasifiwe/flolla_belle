@@ -8,7 +8,8 @@ import {
   createCardSessionHandler,
   completeCardSessionHandler,
   cardConfigHandler,
-} from '../controllers/stripeCardController.js';
+  flutterwaveWebhookHandler,
+} from '../controllers/flutterwaveCardController.js';
 
 const router = Router();
 
@@ -19,5 +20,6 @@ router.post('/simulate-complete/:orderId', simulateCompleteHandler);
 router.get('/card/config', cardConfigHandler);
 router.post('/card/session', createCardSessionHandler);
 router.get('/card/complete', completeCardSessionHandler);
+router.post('/card/webhook', flutterwaveWebhookHandler);
 
 export default router;

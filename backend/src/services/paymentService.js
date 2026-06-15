@@ -2,7 +2,7 @@ import { normalizeRwandaMsisdn } from './rwandaPhone.js';
 import { isMtnConfigured, requestToPay, getRequestToPayStatus } from './mtnMomoClient.js';
 import { isAirtelConfigured, initiateCollection } from './airtelMoneyClient.js';
 import { getOrderById, updateOrderPayment } from '../models/orderModel.js';
-import { getStripe, isStripeConfigured } from './stripeCardService.js';
+import { syncFlutterwaveOrderPayment } from './flutterwaveCardService.js';
 
 const PAID = 'paid';
 const FAILED = 'failed';
@@ -130,23 +130,9 @@ export async function syncPaymentStatusFromProvider(orderIdParam) {
     return { payment_status: order.payment_status, paid: true };
   }
 
-  if (String(order.payment_method).toLowerCase() === 'card' && order.payment_external_id && isStripeConfigured()) {
+  if (String(order.payment_method).toLowerCase() === 'card' && order.payment_external_id) {
     try {
-      const stripe = getStripe();
-      const session = await stripe.checkout.sessions.retrieve(order.payment_external_id);
-      if (session.payment_status === 'paid' || session.payment_status === 'no_payment_required') {
-        const piRef =
-          typeof session.payment_intent === 'string'
-            ? session.payment_intent
-            : session.payment_intent?.id || session.id;
-        await updateOrderPayment(orderId, {
-          payment_status: PAID,
-          payment_reference: piRef,
-          payment_external_id: session.id,
-        });
-        return { payment_status: PAID, paid: true };
-      }
-      return { payment_status: order.payment_status, paid: false };
+      return await syncFlutterwaveOrderPayment(order);
     } catch (e) {
       return { payment_status: order.payment_status, paid: false, error: e.message };
     }

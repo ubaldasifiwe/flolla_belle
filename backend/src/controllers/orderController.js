@@ -1,5 +1,6 @@
 import { createOrder, getOrderById, listAllOrders, updateOrder } from '../models/orderModel.js';
 import { syncPaymentStatusFromProvider } from '../services/paymentService.js';
+import { sendDeliveredEmail } from '../services/emailService.js';
 
 function parseOrderId(param) {
   const s = String(param);
@@ -66,7 +67,7 @@ export async function createOrderHandler(req, res) {
 export async function listOrdersHandler(req, res) {
   try {
     let orders = await listAllOrders();
-    // Card orders: DB can stay on awaiting_payment if return URL / complete failed — sync from Stripe when admin loads orders.
+    // Card orders: sync payment status from Flutterwave when admin loads orders.
     for (const o of orders) {
       if (String(o.payment_method).toLowerCase() === 'card' && o.payment_external_id) {
         const st = String(o.payment_status || '').toLowerCase();
@@ -92,6 +93,9 @@ export async function patchOrderHandler(req, res) {
     const id = parseOrderId(req.params.id);
     if (!Number.isFinite(id)) return res.status(400).json({ message: 'Invalid order id' });
 
+    const before = await getOrderById(id);
+    if (!before) return res.status(404).json({ message: 'Order not found' });
+
     const { status, payment_status, paymentStatus } = req.body;
     const pay = payment_status ?? paymentStatus;
 
@@ -101,6 +105,17 @@ export async function patchOrderHandler(req, res) {
     });
 
     const order = await getOrderById(id);
+
+    const prevStatus = String(before.status || '').toLowerCase();
+    const nextStatus = String(order?.status || '').toLowerCase();
+    if (prevStatus !== 'delivered' && nextStatus === 'delivered') {
+      try {
+        await sendDeliveredEmail(order);
+      } catch (e) {
+        console.error('Failed to send delivered email for order', id, e);
+      }
+    }
+
     res.json(order);
   } catch (err) {
     console.error(err);

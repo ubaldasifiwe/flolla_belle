@@ -118,7 +118,7 @@ const paymentFlowLabel = (status: string, method?: string) => {
   if (s === "payment_requested") return "Prompt sent — awaiting PIN";
   if (s === "awaiting_payment") {
     if (method === "cod") return "COD";
-    if (method === "card") return "Awaiting card on Stripe";
+    if (method === "card") return "Awaiting payment on Flutterwave";
     return "Not initiated yet";
   }
   if (s === "pending" && method === "cod") return "COD — pay on delivery";
@@ -830,11 +830,21 @@ export const OrdersTab = () => {
 
                 <div className="space-y-2">
                   {selectedOrder.lineItems?.map((item) => (
-                    <div key={`${selectedOrder.id}-${item.name}`} className="flex items-center gap-3">
+                    <div key={`${selectedOrder.id}-${item.name}`} className="flex items-start gap-3">
                       <img src={item.image} alt={item.name} className="w-10 h-10 rounded-lg object-cover" />
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-foreground truncate">{item.name}</p>
                         <p className="text-muted-foreground text-xs">Qty: {item.quantity}</p>
+                        {item.customMessage ? (
+                          <div className="mt-2 rounded-md border border-border bg-muted/30 p-2">
+                            <p className="text-[11px] font-medium text-muted-foreground mb-1">
+                              Customer message
+                            </p>
+                            <p className="text-xs text-foreground whitespace-pre-wrap break-words">
+                              {item.customMessage}
+                            </p>
+                          </div>
+                        ) : null}
                       </div>
                       <p className="font-medium text-foreground">{formatPrice(item.price * item.quantity)}</p>
                     </div>

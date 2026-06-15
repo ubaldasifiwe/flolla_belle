@@ -9,6 +9,7 @@ export interface OrderItemSnapshot {
   image: string;
   price: number;
   quantity: number;
+  customMessage?: string | null;
 }
 
 export interface Order {

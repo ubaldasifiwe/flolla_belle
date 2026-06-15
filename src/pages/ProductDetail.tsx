@@ -69,7 +69,7 @@ const ProductDetail = () => {
   const currentPrice = product.sizes[selectedSize]?.price || product.price;
 
   const handleAddToCart = () => {
-    addToCart(product, quantity);
+    addToCart(product, quantity, customMessage);
     toast.success(`${product.name} added to cart`);
   };
 

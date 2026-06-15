@@ -5,25 +5,38 @@ import { completeCardCheckoutSession } from "@/lib/api";
 import { Loader2, CheckCircle2, XCircle } from "lucide-react";
 
 /**
- * After Stripe Checkout, user is redirected here with ?session_id=...
+ * After Flutterwave hosted checkout, user is redirected here with
+ * ?status=successful&tx_ref=...&transaction_id=...
  */
 const CheckoutPaymentReturn = () => {
   const [searchParams] = useSearchParams();
-  const sessionId = searchParams.get("session_id");
+  const transactionId = searchParams.get("transaction_id");
+  const txRef = searchParams.get("tx_ref");
+  const status = searchParams.get("status");
   const [state, setState] = useState<"loading" | "success" | "error">("loading");
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    if (!sessionId) {
+    if (status === "cancelled") {
       setState("error");
-      setMessage("Missing payment session. Return to checkout and try again.");
+      setMessage("Payment was cancelled. You can return to checkout and try again.");
+      return;
+    }
+
+    if (!transactionId && !txRef) {
+      setState("error");
+      setMessage("Missing payment reference. Return to checkout and try again.");
       return;
     }
 
     let cancelled = false;
     (async () => {
       try {
-        const result = await completeCardCheckoutSession(sessionId);
+        const result = await completeCardCheckoutSession({
+          transactionId,
+          txRef,
+          status,
+        });
         if (cancelled) return;
         if (result.paid) {
           setState("success");
@@ -44,7 +57,7 @@ const CheckoutPaymentReturn = () => {
     return () => {
       cancelled = true;
     };
-  }, [sessionId]);
+  }, [transactionId, txRef, status]);
 
   return (
     <Layout>
