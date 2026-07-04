@@ -2,7 +2,7 @@ import { normalizeRwandaMsisdn } from './rwandaPhone.js';
 import { isMtnConfigured, requestToPay, getRequestToPayStatus } from './mtnMomoClient.js';
 import { isAirtelConfigured, initiateCollection } from './airtelMoneyClient.js';
 import { getOrderById, updateOrderPayment } from '../models/orderModel.js';
-import { syncFlutterwaveOrderPayment } from './flutterwaveCardService.js';
+import { syncFlutterwaveOrderPayment, isFlutterwavePaymentMethod } from './flutterwaveCardService.js';
 
 const PAID = 'paid';
 const FAILED = 'failed';
@@ -130,14 +130,16 @@ export async function syncPaymentStatusFromProvider(orderIdParam) {
     return { payment_status: order.payment_status, paid: true };
   }
 
-  if (String(order.payment_method).toLowerCase() === 'card' && order.payment_external_id) {
+  if (isFlutterwavePaymentMethod(order.payment_method) && order.payment_external_id) {
     try {
+      return await syncFlutterwaveOrderPayment(order);
       return await syncFlutterwaveOrderPayment(order);
     } catch (e) {
       return { payment_status: order.payment_status, paid: false, error: e.message };
     }
   }
 
+  // Legacy: direct MTN API (older orders before Flutterwave MoMo)
   if (order.payment_method === 'momo' && order.payment_external_id && isMtnConfigured() && !isSimulateMode()) {
     try {
       const status = await getRequestToPayStatus(order.payment_external_id);

@@ -24,7 +24,11 @@ export async function createCardSessionHandler(req, res) {
     res.json({ url, txRef });
   } catch (err) {
     console.error(err);
+<<<<<<< HEAD
     res.status(400).json({ message: err.message || 'Could not start card checkout' });
+=======
+    res.status(400).json({ message: err.message || 'Could not start Flutterwave checkout' });
+>>>>>>> b3cd0bea (otp number verification)
   }
 }
 

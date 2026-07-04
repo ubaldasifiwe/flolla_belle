@@ -51,6 +51,27 @@ export function parseOrderIdFromTxRef(txRef) {
   return m ? parseInt(m[1], 10) : NaN;
 }
 
+/** Online payments handled on Flutterwave hosted checkout. */
+export const FLUTTERWAVE_PAYMENT_METHODS = ['card', 'momo', 'airtel', 'paypal'];
+
+export function isFlutterwavePaymentMethod(method) {
+  return FLUTTERWAVE_PAYMENT_METHODS.includes(String(method || '').toLowerCase());
+}
+
+function paymentOptionsForMethod(method) {
+  switch (String(method || '').toLowerCase()) {
+    case 'card':
+      return 'card';
+    case 'momo':
+    case 'airtel':
+      return 'mobilemoneyrw';
+    case 'paypal':
+      return 'paypal';
+    default:
+      return 'card,mobilemoneyrw,paypal';
+  }
+}
+
 function buildTxRef(orderId) {
   return `florabelle-ord-${orderId}-${Date.now()}`;
 }
@@ -74,7 +95,7 @@ async function flwJson(path, options = {}) {
 }
 
 /**
- * Flutterwave hosted checkout — cards, mobile money, etc. on Flutterwave page.
+ * Flutterwave hosted checkout — cards, Rwanda MoMo/Airtel, PayPal (when enabled on account).
  */
 export async function createPaymentLinkForOrder(orderId) {
   assertFlutterwaveKey();
@@ -82,8 +103,9 @@ export async function createPaymentLinkForOrder(orderId) {
   const order = await getOrderById(orderId);
   if (!order) throw new Error('Order not found');
 
-  if (String(order.payment_method).toLowerCase() !== 'card') {
-    throw new Error('Order is not using card payment');
+  const method = String(order.payment_method || '').toLowerCase();
+  if (!isFlutterwavePaymentMethod(method)) {
+    throw new Error('Order is not using an online Flutterwave payment method');
   }
 
   const st = String(order.payment_status || '').toLowerCase();
@@ -106,6 +128,7 @@ export async function createPaymentLinkForOrder(orderId) {
       amount,
       currency: 'RWF',
       redirect_url: `${frontend}/checkout/payment-return`,
+      payment_options: paymentOptionsForMethod(method),
       customer: {
         email: order.customer_email,
         name: order.customer_name,
@@ -118,6 +141,7 @@ export async function createPaymentLinkForOrder(orderId) {
       },
       meta: {
         order_id: String(orderId),
+        payment_method: method,
       },
     }),
   });
@@ -148,7 +172,7 @@ async function markPaidIfValid(orderId, txData) {
   const order = await getOrderById(orderId);
   if (!order) throw new Error('Order not found');
 
-  if (String(order.payment_method).toLowerCase() !== 'card') {
+  if (!isFlutterwavePaymentMethod(order.payment_method)) {
     throw new Error('Order payment method mismatch');
   }
 
@@ -201,7 +225,7 @@ export async function fulfillFlutterwavePayment({ transactionId, txRef }) {
   return markPaidIfValid(orderId, txData);
 }
 
-/** Sync unpaid card orders using stored tx_ref. */
+/** Sync unpaid Flutterwave orders using stored tx_ref. */
 export async function syncFlutterwaveOrderPayment(order) {
   if (!isFlutterwaveConfigured()) {
     return { payment_status: order.payment_status, paid: false };

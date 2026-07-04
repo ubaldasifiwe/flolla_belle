@@ -17,7 +17,10 @@ export async function createOrderHandler(req, res) {
     const payment_status =
       paymentMethod === 'cod'
         ? 'pending'
-        : paymentMethod === 'momo' || paymentMethod === 'airtel' || paymentMethod === 'card'
+        : paymentMethod === 'momo' ||
+            paymentMethod === 'airtel' ||
+            paymentMethod === 'card' ||
+            paymentMethod === 'paypal'
           ? 'awaiting_payment'
           : 'pending';
 
@@ -67,9 +70,15 @@ export async function createOrderHandler(req, res) {
 export async function listOrdersHandler(req, res) {
   try {
     let orders = await listAllOrders();
+<<<<<<< HEAD
     // Card orders: sync payment status from Flutterwave when admin loads orders.
+=======
+    // Flutterwave orders: sync payment status when admin loads orders.
+>>>>>>> b3cd0bea (otp number verification)
     for (const o of orders) {
-      if (String(o.payment_method).toLowerCase() === 'card' && o.payment_external_id) {
+      const method = String(o.payment_method || '').toLowerCase();
+      const isFlw = ['card', 'momo', 'airtel', 'paypal'].includes(method);
+      if (isFlw && o.payment_external_id) {
         const st = String(o.payment_status || '').toLowerCase();
         if (!['paid', 'completed', 'captured'].includes(st)) {
           try {
