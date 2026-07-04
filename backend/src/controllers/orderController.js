@@ -70,11 +70,7 @@ export async function createOrderHandler(req, res) {
 export async function listOrdersHandler(req, res) {
   try {
     let orders = await listAllOrders();
-<<<<<<< HEAD
-    // Card orders: sync payment status from Flutterwave when admin loads orders.
-=======
     // Flutterwave orders: sync payment status when admin loads orders.
->>>>>>> b3cd0bea (otp number verification)
     for (const o of orders) {
       const method = String(o.payment_method || '').toLowerCase();
       const isFlw = ['card', 'momo', 'airtel', 'paypal'].includes(method);
